@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include "Color.h"
 #include "FileChooser.h"
 #include "HTMLTextFormControlElement.h"
 #include "SelectionRestorationMode.h"

@@ -48,9 +48,11 @@ class Rect;
 class RenderStyle;
 class RenderView;
 
+struct CSSColorKind;
 struct CSSFontFamily;
 struct Length;
 struct LengthSize;
+
 
 // Max/min values for CSS, needs to slightly smaller/larger than the true max/min values to allow for rounding without overflowing.
 // Subtract two (rather than one) to allow for values to be converted to float and back without exceeding the LayoutUnit::max.
@@ -76,6 +78,7 @@ template<> inline float roundForImpreciseConversion(double value)
     return static_cast<float>(value);
 }
 
+
 class CSSPrimitiveValue final : public CSSValue {
 public:
     static constexpr bool isLength(CSSUnitType);
@@ -98,7 +101,7 @@ public:
     bool isRect() const { return primitiveUnitType() == CSSUnitType::CSS_RECT; }
     bool isPair() const { return primitiveUnitType() == CSSUnitType::CSS_PAIR; }
     bool isPropertyID() const { return primitiveUnitType() == CSSUnitType::CSS_PROPERTY_ID; }
-    bool isRGBColor() const { return primitiveUnitType() == CSSUnitType::CSS_RGBCOLOR; }
+    bool isColor() const { return primitiveUnitType() == CSSUnitType::CSS_COLOR; }
     bool isShape() const { return primitiveUnitType() == CSSUnitType::CSS_SHAPE; }
     bool isString() const { return primitiveUnitType() == CSSUnitType::CSS_STRING; }
     bool isFontFamily() const { return primitiveUnitType() == CSSUnitType::CSS_FONT_FAMILY; }
@@ -178,7 +181,7 @@ public:
 
     WEBCORE_EXPORT String stringValue() const;
 
-    const Color& color() const { ASSERT(primitiveUnitType() == CSSUnitType::CSS_RGBCOLOR); return *m_value.color; }
+    const CSSColorKind & color() const { ASSERT(primitiveUnitType() == CSSUnitType::CSS_COLOR); return *m_value.color; }
     Counter* counterValue() const { return primitiveUnitType() != CSSUnitType::CSS_COUNTER ? nullptr : m_value.counter; }
     CSSCalcValue* cssCalcValue() const { return primitiveUnitType() != CSSUnitType::CSS_CALC ? nullptr : m_value.calc; }
     const CSSFontFamily& fontFamily() const { ASSERT(primitiveUnitType() == CSSUnitType::CSS_FONT_FAMILY); return *m_value.fontFamily; }
@@ -194,6 +197,7 @@ public:
     String customCSSText() const;
 
     bool equals(const CSSPrimitiveValue&) const;
+    bool operator==(const CSSPrimitiveValue& other) const { return this->equals(other); }
 
     static std::optional<double> conversionToCanonicalUnitsScaleFactor(CSSUnitType);
     static ASCIILiteral unitTypeString(CSSUnitType);
@@ -217,7 +221,6 @@ private:
 
     CSSPrimitiveValue(CSSValueID);
     CSSPrimitiveValue(CSSPropertyID);
-    CSSPrimitiveValue(const Color&);
     CSSPrimitiveValue(const Length&);
     CSSPrimitiveValue(const Length&, const RenderStyle&);
     CSSPrimitiveValue(const LengthSize&, const RenderStyle&);
@@ -274,7 +277,7 @@ private:
         Counter* counter;
         Rect* rect;
         Quad* quad;
-        const Color* color;
+        const CSSColorKind* color;
         Pair* pair;
         CSSBasicShape* shape;
         CSSCalcValue* calc;

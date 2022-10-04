@@ -67,6 +67,7 @@
 #include "CSSUnicodeRangeValue.h"
 #include "CSSVariableParser.h"
 #include "CSSVariableReferenceValue.h"
+#include "ColorFromPrimitiveValue.h"
 #include "Counter.h"
 #include "FontFace.h"
 #include "Pair.h"

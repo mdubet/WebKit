@@ -42,6 +42,7 @@
 #include "CSSValuePool.h"
 #include "CSSVariableData.h"
 #include "CSSVariableReferenceValue.h"
+#include "ColorFromPrimitiveValue.h"
 #include "Document.h"
 #include "Element.h"
 #include "Page.h"
@@ -103,9 +104,7 @@ Color CSSParser::parseColor(const String& string, const CSSParserContext& contex
     if (!is<CSSPrimitiveValue>(value))
         return { };
     auto& primitiveValue = downcast<CSSPrimitiveValue>(*value);
-    if (!primitiveValue.isRGBColor())
-        return { };
-    return primitiveValue.color();
+    return Style::colorFromPrimitiveValue(primitiveValue);
 }
 
 Color CSSParser::parseColorWithoutContext(const String& string, bool strict)
@@ -117,9 +116,7 @@ Color CSSParser::parseColorWithoutContext(const String& string, bool strict)
     if (!is<CSSPrimitiveValue>(value))
         return { };
     auto& primitiveValue = downcast<CSSPrimitiveValue>(*value);
-    if (!primitiveValue.isRGBColor())
-        return { };
-    return primitiveValue.color();
+    return Style::colorFromPrimitiveValue(primitiveValue);
 }
 
 Color CSSParser::parseSystemColor(StringView string)
