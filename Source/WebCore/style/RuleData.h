@@ -40,13 +40,25 @@ class RuleData {
 public:
     static const unsigned maximumSelectorComponentCount = 8192;
 
+#if ENABLE(CSS_NESTING)
+    RuleData(const StyleRule&, unsigned selectorIndex, unsigned selectorListIndex, unsigned position, std::shared_ptr<CSSSelector> = nullptr);
+#else
     RuleData(const StyleRule&, unsigned selectorIndex, unsigned selectorListIndex, unsigned position);
+#endif
 
+    void initialize();
     unsigned position() const { return m_position; }
 
     const StyleRule& styleRule() const { return *m_styleRule; }
 
-    const CSSSelector* selector() const { return m_styleRule->selectorList().selectorAt(m_selectorIndex); }
+    const CSSSelector* selector() const { 
+#if ENABLE(CSS_NESTING)
+        if (UNLIKELY(m_flatSelectorFromNested))
+            return m_flatSelectorFromNested.get();
+#endif
+        return m_styleRule->selectorList().selectorAt(m_selectorIndex);
+    }
+
 #if ENABLE(CSS_SELECTOR_JIT)
     CompiledSelector& compiledSelector() const { return m_styleRule->compiledSelectorForListIndex(m_selectorListIndex); }
 #endif
@@ -80,6 +92,10 @@ private:
     unsigned m_propertyAllowlist : 2;
     unsigned m_isEnabled : 1;
     SelectorFilter::Hashes m_descendantSelectorIdentifierHashes;
+
+#if ENABLE(CSS_NESTING)
+    std::shared_ptr<CSSSelector> m_flatSelectorFromNested;
+#endif
 };
 
 } // namespace Style

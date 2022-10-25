@@ -40,12 +40,13 @@ namespace WebCore {
 class CSSParserTokenRange;
 class CSSSelectorList;
 class StyleSheetContents;
+class StyleRule;
 
 struct CSSParserContext;
 
 class CSSSelectorParser {
 public:
-    CSSSelectorParser(const CSSParserContext&, StyleSheetContents*);
+    CSSSelectorParser(const CSSParserContext&, StyleSheetContents*, bool isNestedSelector = false);
 
     CSSSelectorList consumeComplexSelectorList(CSSParserTokenRange&);
 
@@ -72,6 +73,7 @@ private:
     std::unique_ptr<CSSParserSelector> consumeClass(CSSParserTokenRange&);
     std::unique_ptr<CSSParserSelector> consumePseudo(CSSParserTokenRange&);
     std::unique_ptr<CSSParserSelector> consumeAttribute(CSSParserTokenRange&);
+    std::unique_ptr<CSSParserSelector> consumeNesting(CSSParserTokenRange& range);
 
     CSSSelector::RelationType consumeCombinator(CSSParserTokenRange&);
     CSSSelector::Match consumeAttributeMatch(CSSParserTokenRange&);
@@ -87,6 +89,7 @@ private:
 
     const CSSParserContext& m_context;
     const RefPtr<StyleSheetContents> m_styleSheet;
+    bool m_isNestedSelector { false };
     bool m_failedParsing { false };
     bool m_disallowPseudoElements { false };
     bool m_disallowHasPseudoClass { false };
@@ -98,6 +101,6 @@ private:
 
 
 
-std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange, const CSSParserContext&, StyleSheetContents*);
+std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange, const CSSParserContext&, StyleSheetContents*, bool);
 
 } // namespace WebCore

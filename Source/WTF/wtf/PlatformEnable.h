@@ -922,9 +922,9 @@
 #define ENABLE_GPU_PROCESS_DOM_RENDERING_BY_DEFAULT 1
 #endif
 
-
-
-
+#if !defined(ENABLE_CSS_NESTING)
+#define ENABLE_CSS_NESTING 1
+#endif
 
 /* Asserts, invariants for macro definitions */
 

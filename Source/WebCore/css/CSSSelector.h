@@ -63,6 +63,8 @@ struct PossiblyQuotedIdentifier {
         std::array<uint8_t, 3> computeSpecificityTuple() const;
         unsigned specificityForPage() const;
 
+        CSSSelector flattenSelector(const CSSSelectorList* parent) const;
+
         // How the attribute value has to match. Default is Exact.
         enum Match {
             Unknown = 0,
@@ -185,6 +187,7 @@ struct PossiblyQuotedIdentifier {
             PseudoClassHasAttachment,
 #endif
             PseudoClassModal,
+            PseudoClassParent,
         };
 
         enum PseudoElementType {

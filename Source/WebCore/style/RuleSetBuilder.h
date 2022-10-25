@@ -24,6 +24,8 @@
 #include "MediaQuery.h"
 #include "RuleSet.h"
 
+#include <stack>
+
 namespace WebCore {
 namespace Style {
 
@@ -49,6 +51,7 @@ private:
     void updateCascadeLayerPriorities();
     void addMutatingRulesToResolver();
     void updateDynamicMediaQueries();
+    std::shared_ptr<CSSSelector> flatSelectorFromNestingStack(const CSSSelector*);
 
     struct MediaQueryCollector {
         ~MediaQueryCollector();
@@ -84,6 +87,8 @@ private:
 
     Vector<RuleSet::ResolverMutatingRule> m_collectedResolverMutatingRules;
     bool requiresStaticMediaQueryEvaluation { false };
+
+    std::stack<const CSSSelectorList*> m_nestedSelectorStack;
 };
 
 }

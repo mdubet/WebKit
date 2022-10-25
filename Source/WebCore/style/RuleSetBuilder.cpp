@@ -38,6 +38,8 @@
 #include <wtf/CryptographicallyRandomNumber.h>
 #include <wtf/text/StringConcatenateNumbers.h>
 
+#include <memory>
+
 namespace WebCore {
 namespace Style {
 
@@ -179,20 +181,60 @@ void RuleSetBuilder::addRulesFromSheetContents(const StyleSheetContents& sheet)
     addChildRules(sheet.childRules());
 }
 
+std::shared_ptr<CSSSelector> RuleSetBuilder::flatSelectorFromNestingStack(const CSSSelector* currentSelector)
+{
+    ALWAYS_LOG_WITH_STREAM(stream << "building from nested selector " << currentSelector);
+    ASSERT(currentSelector);
+    auto flatSelector = std::make_shared<CSSSelector>(*currentSelector);
+
+    // We don't want to modify the actual stack of RuleSetBuilder, so we copy it.
+    auto localStack = m_nestedSelectorStack;
+
+    // The bottom element of the stack is not nested.
+    while (localStack.size() >= 1) {
+        auto parentSelector = localStack.top();
+        flatSelector = std::make_shared<CSSSelector>(flatSelector->flattenSelector(parentSelector));
+        localStack.pop();
+    }
+    ASSERT(localStack.empty());
+
+    ALWAYS_LOG_WITH_STREAM(stream << "returning flatten selector " << flatSelector->selectorText());
+    return flatSelector;
+}
+
 void RuleSetBuilder::addStyleRule(const StyleRule& rule)
 {
     auto& selectorList = rule.selectorList();
-    if (selectorList.isEmpty())
-        return;
-    unsigned selectorListIndex = 0;
-    for (size_t selectorIndex = 0; selectorIndex != notFound; selectorIndex = selectorList.indexOfNextSelectorAfter(selectorIndex)) {
-        RuleData ruleData(rule, selectorIndex, selectorListIndex, m_ruleSet->ruleCount());
-        m_mediaQueryCollector.addRuleIfNeeded(ruleData);
+    if (!selectorList.isEmpty()) {
+        unsigned selectorListIndex = 0;
+        for (size_t selectorIndex = 0; selectorIndex != notFound; selectorIndex = selectorList.indexOfNextSelectorAfter(selectorIndex)) {
+            if (LIKELY(m_nestedSelectorStack.empty())) {
+                RuleData ruleData(rule, selectorIndex, selectorListIndex, m_ruleSet->ruleCount());
+                m_mediaQueryCollector.addRuleIfNeeded(ruleData);
 
-        m_ruleSet->addRule(WTFMove(ruleData), m_currentCascadeLayerIdentifier, m_currentContainerQueryIdentifier);
+                m_ruleSet->addRule(WTFMove(ruleData), m_currentCascadeLayerIdentifier, m_currentContainerQueryIdentifier);
 
-        ++selectorListIndex;
+                ++selectorListIndex;
+#if ENABLE(CSS_NESTING)
+            } else {
+                // We are in a nesting context, we need to rewrite the selectors.
+                // FIXME: Find a way to optimize the memory representation.
+                auto nestedSelector = selectorList.selectorAt(selectorIndex);
+                auto flatSelector = flatSelectorFromNestingStack(nestedSelector);
+                RuleData ruleData(rule, selectorIndex, selectorListIndex, m_ruleSet->ruleCount(), flatSelector);
+                m_mediaQueryCollector.addRuleIfNeeded(ruleData);
+                m_ruleSet->addRule(WTFMove(ruleData), m_currentCascadeLayerIdentifier, m_currentContainerQueryIdentifier);              
+#endif
+            }
+        }
     }
+
+    for (auto& nestedRule: rule.nestedRules()) {
+        m_nestedSelectorStack.push(&nestedRule->selectorList());
+        addStyleRule(nestedRule);
+        m_nestedSelectorStack.pop();
+    }
+
 }
 
 void RuleSetBuilder::disallowDynamicMediaQueryEvaluationIfNeeded()

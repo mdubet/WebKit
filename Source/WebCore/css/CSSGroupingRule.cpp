@@ -81,6 +81,7 @@ ExceptionOr<unsigned> CSSGroupingRule::insertRule(const String& ruleString, unsi
         // at-rule.
         return Exception { HierarchyRequestError };
     }
+    
     CSSStyleSheet::RuleMutationScope mutationScope(this);
 
     m_groupRule->wrapperInsertRule(index, newRule.releaseNonNull());

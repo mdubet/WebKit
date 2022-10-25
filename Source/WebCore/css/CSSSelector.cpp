@@ -37,6 +37,9 @@
 #include <wtf/Vector.h>
 #include <wtf/text/AtomStringHash.h>
 #include <wtf/text/StringBuilder.h>
+#include <wtf/text/TextStream.h>
+
+#include <memory>
 
 namespace WebCore {
 
@@ -163,6 +166,8 @@ SelectorSpecificity simpleSelectorSpecificity(const CSSSelector& simpleSelector)
             return SelectorSpecificityIncrement::ClassB + maxSpecificity(simpleSelector.selectorList());
         case CSSSelector::PseudoClassRelativeScope:
             return 0;
+        case CSSSelector::PseudoClassParent:
+                ASSERT_NOT_REACHED();
         default:
             return SelectorSpecificityIncrement::ClassB;
         }
@@ -648,6 +653,9 @@ String CSSSelector::selectorText(StringView separator, StringView rightSide) con
             case CSSSelector::PseudoClassOptional:
                 builder.append(":optional");
                 break;
+            case CSSSelector::PseudoClassParent:
+                builder.append('&');
+                break;
             case CSSSelector::PseudoClassIs: {
                 builder.append(":is(");
                 cs->selectorList()->buildSelectorsText(builder);
@@ -929,6 +937,47 @@ bool CSSSelector::RareData::matchNth(int count)
     if (a < 0)
         return count <= b && !((b - count) % -a);
     return count == b;
+}
+
+CSSSelector CSSSelector::flattenSelector(const CSSSelectorList* parent) const
+{
+    ASSERT(parent);
+    ALWAYS_LOG_WITH_STREAM(stream << "should flatten selector " << this->selectorText());
+
+    auto makeIsOfParentSelector = [&]() {
+        CSSSelector flat;
+        flat.setMatch(Match::PseudoClass);
+        flat.setPseudoClassType(PseudoClassType::PseudoClassIs);
+        flat.setSelectorList(std::make_unique<CSSSelectorList>(*parent));
+        return flat;
+    };
+
+    if (match() == CSSSelector::PseudoClass && pseudoClassType() == CSSSelector::PseudoClassParent) {
+        ASSERT(!selectorList());
+        ALWAYS_LOG_WITH_STREAM(stream << "is & selector, return");
+        return makeIsOfParentSelector();
+    }
+    
+    // We will make a flat equivalent.
+    CSSSelector result = *this;
+
+    if (!result.selectorList())
+        return result;
+
+    // We need to look for a parent selector and replace everywhere in the complex/compound selector.
+    auto flattenSelectorListArray = makeUniqueArray<CSSSelector>(result.selectorList()->componentCount());
+    unsigned idx = 0;
+    for (auto* selector = result.selectorList()->first(); selector; selector = CSSSelectorList::next(selector)) {
+        new (&flattenSelectorListArray[idx]) CSSSelector(selector->flattenSelector(parent));
+        idx++;
+    }
+    ASSERT(idx == result.selectorList()->componentCount());
+    ALWAYS_LOG_WITH_STREAM(stream << "end iteration");
+    //CSSSelectorList flattenSelectorList (flattenSelectorListArray);
+    result.setSelectorList(std::make_unique<CSSSelectorList>(WTFMove(flattenSelectorListArray)));
+    ALWAYS_LOG_WITH_STREAM(stream << "done");
+    ALWAYS_LOG_WITH_STREAM(stream << "flatten result selector " << result.selectorText());
+    return result;
 }
 
 } // namespace WebCore

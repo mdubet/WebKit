@@ -54,9 +54,10 @@ struct SameSizeAsRuleData {
     unsigned b;
     unsigned c;
     unsigned d[4];
+    void* nested_shared_ptr[2];
 };
 
-static_assert(sizeof(RuleData) == sizeof(SameSizeAsRuleData), "RuleData should stay small");
+static_assert(sizeof(RuleData) <= sizeof(SameSizeAsRuleData), "RuleData should stay small");
 
 static inline MatchBasedOnRuleHash computeMatchBasedOnRuleHash(const CSSSelector& selector)
 {
@@ -157,22 +158,41 @@ static inline PropertyAllowlist determinePropertyAllowlist(const CSSSelector* se
     return PropertyAllowlist::None;
 }
 
+void RuleData::initialize()
+{
+    m_matchBasedOnRuleHash = static_cast<unsigned>(computeMatchBasedOnRuleHash(*selector()));
+    m_canMatchPseudoElement = selectorCanMatchPseudoElement(*selector());
+    m_containsUncommonAttributeSelector = computeContainsUncommonAttributeSelector(*selector());
+    m_linkMatchType = SelectorChecker::determineLinkMatchType(selector());
+    m_propertyAllowlist = static_cast<unsigned>(determinePropertyAllowlist(selector()));
+    m_isEnabled = true;
+    m_descendantSelectorIdentifierHashes = SelectorFilter::collectHashes(*selector());
+}
+
+#if ENABLE(CSS_NESTING)
+RuleData::RuleData(const StyleRule& styleRule, unsigned selectorIndex, unsigned selectorListIndex, unsigned position, std::shared_ptr<CSSSelector> flatSelector)
+    : m_styleRule(&styleRule)
+    , m_selectorIndex(selectorIndex)
+    , m_selectorListIndex(selectorListIndex)
+    , m_position(position)
+    , m_flatSelectorFromNested(flatSelector)
+{
+    ASSERT(m_position == position);
+    ASSERT(m_selectorIndex == selectorIndex);
+    initialize();
+}
+#else
 RuleData::RuleData(const StyleRule& styleRule, unsigned selectorIndex, unsigned selectorListIndex, unsigned position)
     : m_styleRule(&styleRule)
     , m_selectorIndex(selectorIndex)
     , m_selectorListIndex(selectorListIndex)
     , m_position(position)
-    , m_matchBasedOnRuleHash(static_cast<unsigned>(computeMatchBasedOnRuleHash(*selector())))
-    , m_canMatchPseudoElement(selectorCanMatchPseudoElement(*selector()))
-    , m_containsUncommonAttributeSelector(computeContainsUncommonAttributeSelector(*selector()))
-    , m_linkMatchType(SelectorChecker::determineLinkMatchType(selector()))
-    , m_propertyAllowlist(static_cast<unsigned>(determinePropertyAllowlist(selector())))
-    , m_isEnabled(true)
-    , m_descendantSelectorIdentifierHashes(SelectorFilter::collectHashes(*selector()))
 {
     ASSERT(m_position == position);
     ASSERT(m_selectorIndex == selectorIndex);
+    initialize();
 }
+#endif
 
 } // namespace Style
 } // namespace WebCore

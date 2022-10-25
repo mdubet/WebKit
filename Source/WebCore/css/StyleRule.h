@@ -98,10 +98,11 @@ private:
 };
 
 DECLARE_ALLOCATOR_WITH_HEAP_IDENTIFIER(StyleRule);
-class StyleRule final : public StyleRuleBase {
+class StyleRule final : public StyleRuleBase, public CanMakeWeakPtr<StyleRule> {
     WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(StyleRule);
 public:
-    static Ref<StyleRule> create(Ref<StyleProperties>&&, bool hasDocumentSecurityOrigin, CSSSelectorList&&);
+    static Ref<StyleRule> create(bool hasDocumentSecurityOrigin, CSSSelectorList&&);
+    static Ref<StyleRule> create(Ref<StyleProperties>&&, bool hasDocumentSecurityOrigin, CSSSelectorList&&, WeakPtr<StyleRule> parentRule, Vector<Ref<StyleRule>> nestedRules);
     Ref<StyleRule> copy() const;
     ~StyleRule();
 
@@ -127,15 +128,25 @@ public:
 #endif
 
     static unsigned averageSizeInBytes();
+    void setProperties(Ref<StyleProperties> properties);
+    void setParentRule(WeakPtr<StyleRule> parentRule) { m_parentRule = parentRule; }
+    void setNestedRules(Vector<Ref<StyleRule>> nestedRules) { m_nestedRules = nestedRules; }
+    void appendNestedRule(Ref<StyleRule> rule) { m_nestedRules.append(rule); }
+    const Vector<Ref<StyleRule>>& nestedRules() const { return m_nestedRules; }
 
 private:
-    StyleRule(Ref<StyleProperties>&&, bool hasDocumentSecurityOrigin, CSSSelectorList&&);
+    StyleRule(Ref<StyleProperties>&&, bool hasDocumentSecurityOrigin, CSSSelectorList&&, WeakPtr<StyleRule>, Vector<Ref<StyleRule>>);
+    StyleRule(bool hasDocumentSecurityOrigin, CSSSelectorList&&);
     StyleRule(const StyleRule&);
 
     static Ref<StyleRule> createForSplitting(const Vector<const CSSSelector*>&, Ref<StyleProperties>&&, bool hasDocumentSecurityOrigin);
 
     mutable Ref<StyleProperties> m_properties;
     CSSSelectorList m_selectorList;
+
+    // CSS Nesting
+    WeakPtr<StyleRule> m_parentRule;
+    Vector<Ref<StyleRule>> m_nestedRules;
 
 #if ENABLE(CSS_SELECTOR_JIT)
     mutable UniqueArray<CompiledSelector> m_compiledSelectors;

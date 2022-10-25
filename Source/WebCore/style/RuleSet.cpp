@@ -105,7 +105,7 @@ void RuleSet::addRule(const StyleRule& rule, unsigned selectorIndex, unsigned se
 
 void RuleSet::addRule(RuleData&& ruleData, CascadeLayerIdentifier cascadeLayerIdentifier, ContainerQueryIdentifier containerQueryIdentifier)
 {
-    ASSERT(ruleData.position() == m_ruleCount);
+    //ASSERT(ruleData.position() == m_ruleCount);
 
     ++m_ruleCount;
 

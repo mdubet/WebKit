@@ -172,7 +172,7 @@ CSSParser::ParseResult CSSParser::parseValue(MutableStyleProperties& declaration
 
 std::optional<CSSSelectorList> CSSParser::parseSelector(const String& string, StyleSheetContents* styleSheet)
 {
-    return parseCSSSelector(CSSTokenizer(string).tokenRange(), m_context, styleSheet);
+    return parseCSSSelector(CSSTokenizer(string).tokenRange(), m_context, styleSheet, false);
 }
 
 Ref<ImmutableStyleProperties> CSSParser::parseInlineStyleDeclaration(const String& string, const Element* element)
