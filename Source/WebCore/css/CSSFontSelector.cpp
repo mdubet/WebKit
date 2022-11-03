@@ -251,11 +251,12 @@ void CSSFontSelector::addFontFeatureValuesRule(const StyleRuleFontFeatureValues&
     Ref<FontFeatureValues> fontFeatureValues = fontFeatureValuesRule.value();
 
     for (const auto& fontFamily : fontFeatureValuesRule.fontFamilies()) {
-        auto exist = m_featureValues.get(fontFamily);
+        auto lowercased = fontFamily.convertToASCIILowercase();
+        auto exist = m_featureValues.get(lowercased);
         if (exist)
             exist->updateOrInsert(fontFeatureValues.get());
         else
-            m_featureValues.set(fontFamily, fontFeatureValues);
+            m_featureValues.set(lowercased, fontFeatureValues);
     }
 
     ++m_version;
@@ -352,7 +353,8 @@ const FontPaletteValues& CSSFontSelector::lookupFontPaletteValues(const AtomStri
 
 RefPtr<FontFeatureValues> CSSFontSelector::lookupFontFeatureValues(const AtomString& familyName)
 {
-    auto iterator = m_featureValues.find(familyName);
+    auto lowercased = familyName.convertToASCIILowercase();
+    auto iterator = m_featureValues.find(lowercased);
     if (iterator == m_featureValues.end())
         return nullptr;
 

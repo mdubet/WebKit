@@ -564,6 +564,8 @@ inline bool startsWithLettersIgnoringASCIICase(const String& string, ASCIILitera
     return startsWithLettersIgnoringASCIICase(string.impl(), literal);
 }
 
+String makeStringByJoining(const Vector<String>& strings, UChar separator);
+
 struct HashTranslatorASCIILiteral {
     static unsigned hash(ASCIILiteral literal)
     {

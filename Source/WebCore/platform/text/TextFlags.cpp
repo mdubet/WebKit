@@ -77,10 +77,10 @@ WTF::TextStream& operator<<(TextStream& ts, FontVariantAlternates alternates)
             append("stylistic(", *values.stylistic, ")");
         if (values.historicalForms)
             append("historical-forms"_s);
-        if (values.styleset)
-            append("styleset(", *values.styleset, ")");
-        if (values.characterVariant)
-            append("character-variant(", *values.characterVariant, ")");
+        if (!values.styleset.isEmpty())
+            append("styleset(", makeStringByJoining(values.styleset, ','), ")");
+        if (!values.characterVariant.isEmpty())
+            append("character-variant(", makeStringByJoining(values.characterVariant, ','), ")");
         if (values.swash)
             append("swash(", *values.swash, ")");
         if (values.ornaments)
@@ -268,7 +268,7 @@ FeaturesMap computeFeatureSettingsFromVariants(const FontVariantSettings& varian
             features.set(fontFeatureTag("hist"), 1);
         
         if (fontFeatureValues) {
-            auto lookupTags = [](const auto& name, const auto& tags) -> Span<const unsigned> {
+            auto lookupTags = [](const std::optional<String>& name, const auto& tags) -> Span<const unsigned> {
                 if (!name)
                     return { };
 
@@ -282,37 +282,61 @@ FeaturesMap computeFeatureSettingsFromVariants(const FontVariantSettings& varian
 
             auto addFeatureTagWithValue = [&features, &lookupTags] (const auto& name, const auto& tags, const FontTag& codename) {
                 for (unsigned value : lookupTags(name, tags)) {
-                    // The spec says that we ignore value greater than 99.
-                    if (value > 99)
+                    // The spec says that we ignore value lower than 1 or greater than 99.
+                    if (value < 1 || value > 99)
                         continue;
 
                     features.set(codename, value);
                 }
             };
 
-            // Some features (styleset, character-variant and historical-forms) don't have values,
-            // the tag name itself is the actual conveyor of information.
-            auto addFeatureTags = [&features, &lookupTags](const auto& name, const auto& tags, std::array<char, 2> codename) {
-                for (unsigned value : lookupTags(name, tags)) {
-                    // The spec says that we ignore value greater than 99.
-                    if (value > 99)
-                        continue;
-
+            // https://www.w3.org/TR/css-fonts-4/#multi-value-features
+            auto makeTag = [](unsigned value, std::array<char,2> codename) {
                     char rightDigit = '0' + (value % 10);
                     char leftDigit = '0' + (value / 10);
-                    FontTag tag = { codename[0], codename[1], leftDigit, rightDigit };
-                    features.set(tag, 1);
+                    return FontTag { codename[0], codename[1], leftDigit, rightDigit };
+            };
+
+            // For styleset, the tag name itself is the actual conveyor of information.
+            auto addStylesetTags = [&makeTag, &features, &lookupTags](const Vector<String>& names, const auto& tags, std::array<char, 2> codename) {
+                for (const auto& name: names) {
+                    for (unsigned value : lookupTags(name, tags)) {
+                        // The spec says that we ignore value lower than 1 or greater than 99.
+                        if (value < 1 || value > 99)
+                            continue;
+
+                        features.set(makeTag(value, codename), 1);
+                    }
                 }
             };
 
-            addFeatureTags(values.styleset, fontFeatureValues->styleset(), { 's', 's' });
-            addFeatureTags(values.characterVariant, fontFeatureValues->characterVariant(), { 'c', 'v' });
-            addFeatureTagWithValue(values.stylistic, fontFeatureValues->stylistic(), fontFeatureTag("salt"));
+            auto addCharacterVariantTags = [&makeTag, &features, &lookupTags](const Vector<String>& names, const auto& tags, std::array<char, 2> codename) {
+                for (const auto& name: names) {
+                    const auto& values = lookupTags(name, tags);
 
+                    //  If more than two values are assigned to a given name, the entire feature value definition is ignored.
+                    if (values.size() > 2 || values.size() < 1)
+                        return;
+
+                    // The spec says that we ignore feature number lower than 1 or greater than 99.
+                    // It's not precised for the feature value, but we assume here that it's the same behavior as the other variants (1 <= value <= 99)
+                    for (unsigned value : values) {
+                        if (value < 1 || value > 99)
+                            return;
+                    }
+
+                    auto featureNumber = values[0];
+                    auto featureValue = values.size() == 2 ? values[1] : 1;
+                    features.set(makeTag(featureNumber,codename), featureValue);
+                }
+            };
+
+            addStylesetTags(values.styleset, fontFeatureValues->styleset(), { 's', 's' });
+            addCharacterVariantTags(values.characterVariant, fontFeatureValues->characterVariant(), { 'c', 'v' });
+            addFeatureTagWithValue(values.stylistic, fontFeatureValues->stylistic(), fontFeatureTag("salt"));
             // "swash" feature sets 2 flags.
             addFeatureTagWithValue(values.swash, fontFeatureValues->swash(), fontFeatureTag("swsh"));
             addFeatureTagWithValue(values.swash, fontFeatureValues->swash(), fontFeatureTag("cswh"));
-
             addFeatureTagWithValue(values.ornaments, fontFeatureValues->ornaments(), fontFeatureTag("ornm"));
             addFeatureTagWithValue(values.annotation, fontFeatureValues->annotation(), fontFeatureTag("nalt"));
         }

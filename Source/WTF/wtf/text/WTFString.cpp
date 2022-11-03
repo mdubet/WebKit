@@ -623,6 +623,17 @@ float charactersToFloat(const UChar* data, size_t length, size_t& parsedLength)
 const StaticString nullStringData { nullptr };
 const StaticString emptyStringData { &StringImpl::s_emptyAtomString };
 
+String makeStringByJoining(const Vector<String>& strings, UChar separator)
+{
+    StringBuilder builder;
+    for(auto& string : strings) {
+        if (!builder.isEmpty())
+            builder.append(separator);
+        builder.append(string);
+    }
+    return builder.toString();
+}
+
 } // namespace WTF
 
 #ifndef NDEBUG
