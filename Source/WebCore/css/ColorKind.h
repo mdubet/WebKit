@@ -30,6 +30,7 @@
 
 #pragma once
 
+#include "CSSValueKeywords.h"
 #include "Color.h"
 #include "ColorInterpolationMethod.h"
 #include <variant>
@@ -69,19 +70,21 @@ public:
     }
 
     bool operator==(ColorMix<T> const& other) const {
-        return m_components == other.m_components;
+        return m_colorInterpolationMethod == other.m_colorInterpolationMethod
+        && m_percentages == other.m_percentages
+        && m_components == other.m_components;
     }
 
-    const T& colorA() const
+    const ColorMixComponent<T>& colorA() const
     {
         ASSERT(m_components.size() == 2);
-        return m_components[0].color();
+        return m_components[0];
     }
 
-    const T& colorB() const
+    const ColorMixComponent<T>& colorB() const
     {
         ASSERT(m_components.size() == 2);
-        return m_components[1].color();
+        return m_components[1];
     }
     
     ColorInterpolationMethod colorInterpolationMethod() const
@@ -126,13 +129,9 @@ private:
     std::optional<double> m_percentage;
 };
 
-struct CSSColorKind final : std::variant<Color, ColorMix<CSSColorKind>>
-{
-};
-
-struct StyleColorKind final : std::variant<Color, CurrentColor, ColorMix<StyleColorKind>>
-{
-};
+class CSSPrimitiveValue;
+using RFA = Ref<CSSPrimitiveValue>;
+using CSSColorKind = std::variant<RFA /* identifier */, Color, ColorMix<RFA>>;
 
 WEBCORE_EXPORT String serializationForCSS(const CSSColorKind&);
 bool operator==(const CSSColorKind&, const CSSColorKind&);

@@ -25,7 +25,7 @@
 #include "CSSUnits.h"
 #include "CSSValue.h"
 #include "CSSValueKeywords.h"
-#include "Color.h"
+#include "ColorKind.h"
 #include "ExceptionOr.h"
 #include "LayoutUnit.h"
 #include <utility>
@@ -48,7 +48,6 @@ class Rect;
 class RenderStyle;
 class RenderView;
 
-struct CSSColorKind;
 struct CSSFontFamily;
 struct Length;
 struct LengthSize;

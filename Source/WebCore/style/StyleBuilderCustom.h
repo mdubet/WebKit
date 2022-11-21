@@ -2110,11 +2110,12 @@ inline void BuilderCustom::applyValueColor(BuilderState& builderState, CSSValue&
 
     // For the color property, current color is actually the inherited computed color.
     auto absoluteColorOrInheritColor = [&](const StyleColor& color) {
-        if (color.isCurrentColor()) {
-            auto& parentStyle = builderState.parentStyle();
-            return parentStyle.color();
-        }
-        return color.absoluteColor();
+        if (color.isAbsoluteColor())
+            return color.absoluteColor();
+
+        auto& parentStyle = builderState.parentStyle();
+        auto inheritedColor = parentStyle.color();
+        return color.resolveColor(inheritedColor);
     };
     
     if (builderState.applyPropertyToRegularStyle()) {

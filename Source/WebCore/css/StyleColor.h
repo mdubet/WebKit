@@ -46,8 +46,12 @@ enum class StyleColorOptions : uint8_t {
     UseElevatedUserInterfaceLevel = 1 << 3
 };
 
+class StyleColor;
+using StyleColorKind =  std::variant<Color, CurrentColor, ColorMix<StyleColor>>;
+
 class StyleColor {
 public:
+
     // The default constructor initializes to currentcolor to preserve old behavior,
     // we might want to change it to invalid color at some point.
     StyleColor()
@@ -65,7 +69,7 @@ public:
     {
     }
 
-    StyleColor(const ColorMix<StyleColorKind>& color)
+    StyleColor(const ColorMix<StyleColor>& color)
         : m_color { color  }
     {
     }
@@ -108,7 +112,7 @@ public:
     bool isAbsoluteColor() const;
     bool isColorMix() const;
     const Color& absoluteColor() const;
-    const ColorMix<StyleColorKind>& colorMix() const;
+    const ColorMix<StyleColor>& colorMix() const;
 
     WEBCORE_EXPORT Color resolveColor(const Color& colorPropertyValue) const;
     WEBCORE_EXPORT Color resolveColorWithoutCurrentColor() const;
@@ -124,6 +128,8 @@ private:
 
     StyleColorKind  m_color;
 };
+
+
 
 WEBCORE_EXPORT String serializationForRenderTreeAsText(const StyleColor&);
 WEBCORE_EXPORT String serializationForCSS(const StyleColor&);

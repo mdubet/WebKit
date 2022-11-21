@@ -30,11 +30,21 @@
 
 #include "ColorKind.h"
 
+#include "CSSMarkup.h"
 #include "CSSPrimitiveValue.h"
 
 namespace WebCore {
 
-WEBCORE_EXPORT String serializationForCSS(const CSSColorKind&) {
+WEBCORE_EXPORT String serializationForCSS(const CSSColorKind& color) {
+    if (std::holds_alternative<RFA>(color))
+        return std::get<RFA>(color)->stringValue();
+
+    if (std::holds_alternative<Color>(color))
+        return serializationForCSS(std::get<Color>(color));
+
+    if (std::holds_alternative<Color>(color))
+        return serializationForCSS(std::get<Color>(color));
+
     return { };
 }
 

@@ -39,24 +39,49 @@ namespace Style {
 
 Color colorFromPrimitiveValue(const CSSPrimitiveValue& value)
 {
-    if (value.isColor()) {
+    if (!value.isColor())
         return { };
-    }
-    return StyleColor::colorFromKeyword(value.valueID(), { });
+    
+    auto colorValue = value.color();
+
+    if (std::holds_alternative<Color>(colorValue))
+        return std::get<Color>(colorValue);
+
+    auto identifier = std::get<CSSValueID>(colorValue);
+    return StyleColor::colorFromKeyword(identifier, { });
 }
 
 StyleColor colorFromPrimitiveValue(const Document& document, RenderStyle& style, const CSSPrimitiveValue& value, ForVisitedLink forVisitedLink)
 {
-    if (value.isColor()) {
-        auto colorKind = value.color();
-        if (std::holds_alternative<Color>(colorKind))
-            return std::get<Color>(colorKind);
-
-        // TODO: recursive conversion
+    if (!value.isColor())
         return { };
-    }
+    
+    auto colorValue = value.color();
 
-    auto identifier = value.valueID();
+    if (std::holds_alternative<ColorMix<RFA>>(colorValue)) {
+        auto colorMix = std::get<ColorMix<RFA>>(colorValue);
+        auto colorA = colorMix.colorA();
+        auto colorB = colorMix.colorB();
+        auto componentA = ColorMixComponent<StyleColor> {
+            colorFromPrimitiveValue(document, style, colorA.color(), forVisitedLink),
+            colorA.percentage()
+        };
+        auto componentB = ColorMixComponent<StyleColor> {
+            colorFromPrimitiveValue(document, style, colorB.color(), forVisitedLink),
+            colorB.percentage()
+        };
+        return ColorMix<StyleColor> { 
+            colorMix.colorInterpolationMethod(),
+            componentA,
+            componentB,
+            colorMix.percentages()
+        };
+    };
+        
+    if (std::holds_alternative<Color>(colorValue))
+        return std::get<Color>(colorValue);
+
+    auto identifier = std::get<CSSValueID>(colorValue);
     switch (identifier) {
     case CSSValueInternalDocumentTextColor:
         return document.textColor();

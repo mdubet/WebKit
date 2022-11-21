@@ -176,13 +176,13 @@ Color StyleColor::resolveColor(const Color& currentColor) const
 
     if (isColorMix()) {
         auto colorMix = this->colorMix();
-        StyleColor colorA = colorMix.colorA();
-        StyleColor colorB = colorMix.colorB();
+        auto colorA = colorMix.colorA();
+        auto colorB = colorMix.colorB();
         return mixColorComponents(
             colorMix.colorInterpolationMethod(),
             colorMix.percentages(),
-            colorA.resolveColor(currentColor),
-            colorB.resolveColor(currentColor));
+            colorA.color().resolveColor(currentColor),
+            colorB.color().resolveColor(currentColor));
     }
 
     return { };
@@ -208,7 +208,7 @@ bool StyleColor::isCurrentColor() const
 
 bool StyleColor::isColorMix() const
 {
-    return std::holds_alternative<ColorMix<StyleColorKind>>(m_color);
+    return std::holds_alternative<ColorMix<StyleColor>>(m_color);
 }
 
 bool StyleColor::isAbsoluteColor() const
@@ -222,10 +222,10 @@ const Color& StyleColor::absoluteColor() const
     return std::get<Color>(m_color);
 }
 
-const ColorMix<StyleColorKind>& StyleColor::colorMix() const
+const ColorMix<StyleColor>& StyleColor::colorMix() const
 {
     ASSERT(isColorMix());
-    return std::get<ColorMix<StyleColorKind>>(m_color);
+    return std::get<ColorMix<StyleColor>>(m_color);
 }
 
 } // namespace WebCore

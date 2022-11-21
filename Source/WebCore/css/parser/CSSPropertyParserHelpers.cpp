@@ -2861,7 +2861,7 @@ static std::optional<ColorInterpolationMethod> consumeColorInterpolationMethod(C
     }
 }
 
-static std::optional<ColorMixComponent<CSSColorKind>> consumeColorMixComponent(CSSParserTokenRange& args, const CSSParserContext& context)
+static std::optional<ColorMixComponent<RFA>> consumeColorMixComponent(CSSParserTokenRange& args, const CSSParserContext& context)
 {
     // Percentage can be before or after the color.
     auto parse_percentage = [&]() -> std::optional<double> {
@@ -2882,10 +2882,10 @@ static std::optional<ColorMixComponent<CSSColorKind>> consumeColorMixComponent(C
     if (!percentage)
         percentage = parse_percentage();
 
-    return ColorMixComponent<CSSColorKind> { *color, percentage };
+    return ColorMixComponent<RFA> { *color, percentage };
 }
 
-static std::optional<ColorMixPercentages> normalizedMixPercentages(const ColorMixComponent<CSSColorKind>& mixComponents1, const ColorMixComponent<CSSColorKind>& mixComponents2)
+static std::optional<ColorMixPercentages> normalizedMixPercentages(const ColorMixComponent<RFA>& mixComponents1, const ColorMixComponent<RFA>& mixComponents2)
 {
     // The percentages are normalized as follows:
 
@@ -2932,7 +2932,7 @@ static std::optional<ColorMixPercentages> normalizedMixPercentages(const ColorMi
     return result;
 }
 
-static std::optional<ColorMix<CSSColorKind>> parseColorMixFunctionParameters(CSSParserTokenRange& range, const CSSParserContext& context)
+static std::optional<ColorMix<RFA>> parseColorMixFunctionParameters(CSSParserTokenRange& range, const CSSParserContext& context)
 {
     // color-mix() = color-mix( <color-interpolation-method> , [ <color> && <percentage [0,100]>? ]#{2})
 
@@ -3062,7 +3062,7 @@ static Color parseColorFunction(CSSParserTokenRange& range, const CSSParserConte
     return color;
 }
 
-static std::optional<ColorMix<CSSColorKind>> parseColorMixFunction(CSSParserTokenRange& range, const CSSParserContext& context)
+static std::optional<ColorMix<RFA>> parseColorMixFunction(CSSParserTokenRange& range, const CSSParserContext& context)
 {
     CSSParserTokenRange colorRange = range;
     CSSValueID functionId = range.peek().functionId();
@@ -3109,18 +3109,18 @@ RefPtr<CSSPrimitiveValue> consumeColor(CSSParserTokenRange& range, const CSSPars
     auto keyword = range.peek().id();
     if (StyleColor::isColorKeyword(keyword, allowedColorTypes)) {
         if (!isValueAllowedInMode(keyword, context.mode))
-            return nullptr;
-        return consumeIdent(range);
+            return { };
+        return CSSPrimitiveValue::create(CSSColorKind { *consumeIdentRaw(range) });
     }
     if (auto hexColor = parseHexColor(range, acceptQuirkyColors))
-        return CSSValuePool::singleton().createColorValue(hexColor);
+        return CSSPrimitiveValue::create(CSSColorKind { hexColor });
 
     auto color = parseColorFunction(range, context);
     if (color.isValid())
-        return CSSValuePool::singleton().createColorValue(color);
+        return CSSPrimitiveValue::create(CSSColorKind { color });
     
     if (auto otherColor = parseColorMixFunction(range, context))
-        return CSSValuePool::singleton().createValue( CSSColorKind { *otherColor });
+        return CSSPrimitiveValue::create(CSSColorKind { *otherColor });
         
     return { };
 }
