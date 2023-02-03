@@ -169,6 +169,7 @@ private:
 
     bool isCSSStyleSheet() const final { return true; }
     String type() const final { return cssContentTypeAtom(); }
+    void ensureStyleRuleWithNestingonly();
 
     Ref<StyleSheetContents> m_contents;
     bool m_isInlineStylesheet { false };

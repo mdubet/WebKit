@@ -47,9 +47,19 @@ CSSGroupingRule::CSSGroupingRule(StyleRuleGroup& groupRule, CSSStyleSheet* paren
 {
 }
 
+CSSGroupingRule::CSSGroupingRule(StyleRule& styleRule, CSSStyleSheet* parent)
+    : CSSRule(parent)
+    , m_groupRule(styleRule)
+    , m_childRuleCSSOMWrappers(0)
+{
+}
+
 CSSGroupingRule::~CSSGroupingRule()
 {
-    ASSERT(m_childRuleCSSOMWrappers.size() == m_groupRule->childRules().size());
+    if (!hasGroupRule())
+        return;
+    
+    ASSERT(m_childRuleCSSOMWrappers.size() == groupRule().childRules().size());
     for (auto& wrapper : m_childRuleCSSOMWrappers) {
         if (wrapper)
             wrapper->setParentRule(nullptr);
@@ -58,15 +68,18 @@ CSSGroupingRule::~CSSGroupingRule()
 
 ExceptionOr<unsigned> CSSGroupingRule::insertRule(const String& ruleString, unsigned index)
 {
-    ASSERT(m_childRuleCSSOMWrappers.size() == m_groupRule->childRules().size());
+    ASSERT(hasGroupRule());
+    ASSERT(m_childRuleCSSOMWrappers.size() == groupRule().childRules().size());
 
-    if (index > m_groupRule->childRules().size()) {
+    if (index > groupRule().childRules().size()) {
         // IndexSizeError: Raised if the specified index is not a valid insertion point.
         return Exception { IndexSizeError };
     }
 
+    auto allowInsertingNestedRule = styleRuleType() == StyleRuleType::Style || hasStyleRuleAscendant();
+    auto isNestedContext = allowInsertingNestedRule ? IsNestedContext::Yes : IsNestedContext::No;
     CSSStyleSheet* styleSheet = parentStyleSheet();
-    RefPtr<StyleRuleBase> newRule = CSSParser::parseRule(parserContext(), styleSheet ? &styleSheet->contents() : nullptr, ruleString);
+    RefPtr<StyleRuleBase> newRule = CSSParser::parseRule(parserContext(), styleSheet ? &styleSheet->contents() : nullptr, ruleString, isNestedContext);
     if (!newRule) {
         // SyntaxError: Raised if the specified rule has a syntax error and is unparsable.
         return Exception { SyntaxError };
@@ -82,19 +95,22 @@ ExceptionOr<unsigned> CSSGroupingRule::insertRule(const String& ruleString, unsi
         // at-rule.
         return Exception { HierarchyRequestError };
     }
+
+    if (allowInsertingNestedRule && (!newRule->isStyleRule() && !newRule->isGroupRule()))
+        return Exception { HierarchyRequestError };
+
     CSSStyleSheet::RuleMutationScope mutationScope(this);
-
-    m_groupRule->wrapperInsertRule(index, newRule.releaseNonNull());
-
+    groupRule().wrapperInsertRule(index, newRule.releaseNonNull());
     m_childRuleCSSOMWrappers.insert(index, RefPtr<CSSRule>());
     return index;
 }
 
 ExceptionOr<void> CSSGroupingRule::deleteRule(unsigned index)
 {
-    ASSERT(m_childRuleCSSOMWrappers.size() == m_groupRule->childRules().size());
+    ASSERT(hasGroupRule());
+    ASSERT(m_childRuleCSSOMWrappers.size() == groupRule().childRules().size());
 
-    if (index >= m_groupRule->childRules().size()) {
+    if (index >= groupRule().childRules().size()) {
         // IndexSizeError: Raised if the specified index does not correspond to a
         // rule in the media rule list.
         return Exception { IndexSizeError };
@@ -102,14 +118,16 @@ ExceptionOr<void> CSSGroupingRule::deleteRule(unsigned index)
 
     CSSStyleSheet::RuleMutationScope mutationScope(this);
 
-    m_groupRule->wrapperRemoveRule(index);
+    groupRule().wrapperRemoveRule(index);
 
     if (m_childRuleCSSOMWrappers[index])
-        m_childRuleCSSOMWrappers[index]->setParentRule(0);
+        m_childRuleCSSOMWrappers[index]->setParentRule(nullptr);
     m_childRuleCSSOMWrappers.remove(index);
 
     return { };
 }
+
+bool CSSGroupingRule::hasGroupRule() const { return std::holds_alternative<Ref<StyleRuleGroup>>(m_groupRule); }
 
 void CSSGroupingRule::appendCSSTextForItems(StringBuilder& builder) const
 {
@@ -138,30 +156,51 @@ void CSSGroupingRule::appendCSSTextForItems(StringBuilder& builder) const
     return;
 }
 
-void CSSGroupingRule::cssTextForDeclsAndRules(StringBuilder&, StringBuilder& rules) const
+void CSSGroupingRule::cssTextForDeclsAndRules(StringBuilder& decls, StringBuilder& rules) const
 {
-    auto& childRules = m_groupRule->childRules();
-
+    if (!hasGroupRule())
+        return;
+    
+    auto& childRules = groupRule().childRules();
     for (unsigned index = 0 ; index < childRules.size() ; index++) {
+        // We put the declarations at the upper level when the rule:
+        // - is a style rule
+        // - has just "&" as selector
+        // - has no child rules
+        auto childRule = childRules[index];
+        ASSERT(childRule);
+        if (childRule->isStyleRuleWithNesting()) {
+            auto& nestedStyleRule = downcast<StyleRuleWithNesting>(*childRule);
+            if (nestedStyleRule.selectorList().isNestingSelector() && nestedStyleRule.childRules().isEmpty()) {
+                decls.append(nestedStyleRule.properties().asText());
+                continue;
+            }
+        }
+        // Otherwise we print the child rule
         auto wrappedRule = item(index);
         rules.append("\n  ", wrappedRule->cssText());
     }
-
 }
 
 unsigned CSSGroupingRule::length() const
 { 
-    return m_groupRule->childRules().size(); 
+    if (!hasGroupRule())
+        return 0;
+    
+    return groupRule().childRules().size(); 
 }
 
 CSSRule* CSSGroupingRule::item(unsigned index) const
 { 
+    if (!hasGroupRule())
+        return nullptr;
+    
     if (index >= length())
         return nullptr;
-    ASSERT(m_childRuleCSSOMWrappers.size() == m_groupRule->childRules().size());
+    ASSERT(m_childRuleCSSOMWrappers.size() == groupRule().childRules().size());
     auto& rule = m_childRuleCSSOMWrappers[index];
     if (!rule)
-        rule = m_groupRule->childRules()[index]->createCSSOMWrapper(const_cast<CSSGroupingRule&>(*this));
+        rule = groupRule().childRules()[index]->createCSSOMWrapper(const_cast<CSSGroupingRule&>(*this));
     return rule.get();
 }
 
@@ -174,10 +213,13 @@ CSSRuleList& CSSGroupingRule::cssRules() const
 
 void CSSGroupingRule::reattach(StyleRuleBase& rule)
 {
+    if (!hasGroupRule())
+        return;
+    
     m_groupRule = downcast<StyleRuleGroup>(rule);
     for (unsigned i = 0; i < m_childRuleCSSOMWrappers.size(); ++i) {
         if (m_childRuleCSSOMWrappers[i])
-            m_childRuleCSSOMWrappers[i]->reattach(*m_groupRule.get().childRules()[i]);
+            m_childRuleCSSOMWrappers[i]->reattach(*groupRule().childRules()[i]);
     }
 }
 

@@ -21,7 +21,7 @@
 
 #pragma once
 
-#include "CSSRule.h"
+#include "CSSGroupingRule.h"
 #include <wtf/WeakPtr.h>
 
 namespace WebCore {
@@ -34,10 +34,10 @@ class StyleRuleCSSStyleDeclaration;
 class StyleRule;
 class StyleRuleWithNesting;
 
-class CSSStyleRule final : public CSSRule, public CanMakeWeakPtr<CSSStyleRule> {
+class CSSStyleRule final : public CSSGroupingRule, public CanMakeWeakPtr<CSSStyleRule> {
 public:
-    static Ref<CSSStyleRule> create(StyleRule& rule, CSSStyleSheet* sheet) { return adoptRef(*new CSSStyleRule(rule, sheet)); }
     static Ref<CSSStyleRule> create(StyleRuleWithNesting& rule, CSSStyleSheet* sheet) { return adoptRef(* new CSSStyleRule(rule, sheet)); };
+    static Ref<CSSStyleRule> create(StyleRule& rule, CSSStyleSheet* sheet) { return adoptRef(* new CSSStyleRule(rule, sheet)); };
 
     virtual ~CSSStyleRule();
 
@@ -48,10 +48,6 @@ public:
 
     // FIXME: Not CSSOM. Remove.
     StyleRule& styleRule() const { return m_styleRule.get(); }
-
-    CSSRuleList& cssRules() const;
-    unsigned length() const;
-    CSSRule* item(unsigned index) const;
 
     StylePropertyMap& styleMap();
 
@@ -64,14 +60,11 @@ private:
     void reattach(StyleRuleBase&) final;
 
     String generateSelectorText() const;
-    Vector<Ref<StyleRuleBase>> nestedRules() const;
+    Vector<RefPtr<StyleRuleBase>> nestedRules() const;
 
     Ref<StyleRule> m_styleRule;
     Ref<DeclaredStylePropertyMap> m_styleMap;
     RefPtr<StyleRuleCSSStyleDeclaration> m_propertiesCSSOMWrapper;
-
-    mutable Vector<RefPtr<CSSRule>> m_childRuleCSSOMWrappers;
-    mutable std::unique_ptr<CSSRuleList> m_ruleListCSSOMWrapper;
 };
 
 } // namespace WebCore

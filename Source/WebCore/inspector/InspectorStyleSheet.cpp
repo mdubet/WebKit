@@ -40,7 +40,6 @@
 #include "CSSPropertySourceData.h"
 #include "CSSRule.h"
 #include "CSSRuleList.h"
-#include "CSSSelectorParser.h"
 #include "CSSStyleRule.h"
 #include "CSSStyleSheet.h"
 #include "CSSSupportsRule.h"
@@ -126,7 +125,7 @@ static CSSParserContext parserContextForDocument(Document* document)
     return document ? CSSParserContext(*document) : strictCSSParserContext();
 }
 
-static bool isValidRuleHeaderText(const String& headerText, StyleRuleType styleRuleType, Document* document, CSSSelectorParser::IsNestedContext isNestedContext)
+static bool isValidRuleHeaderText(const String& headerText, StyleRuleType styleRuleType, Document* document, IsNestedContext isNestedContext)
 {
     auto isValidAtRuleHeaderText = [&] (const String& atRuleIdentifier) {
         if (headerText.isEmpty())
@@ -1056,14 +1055,14 @@ ExceptionOr<String> InspectorStyleSheet::ruleHeaderText(const InspectorCSSId& id
     return sheetText.substring(sourceData->ruleHeaderRange.start, sourceData->ruleHeaderRange.length());
 }
 
-static CSSSelectorParser::IsNestedContext isNestedContext(CSSRule* rule)
+static IsNestedContext isNestedContext(CSSRule* rule)
 {
     for (CSSRule *parentRule = rule->parentRule(); parentRule; parentRule = parentRule->parentRule()) {
         if (is<CSSStyleRule>(parentRule))
-            return CSSSelectorParser::IsNestedContext::Yes;
+            return IsNestedContext::Yes;
     }
 
-    return CSSSelectorParser::IsNestedContext::No;
+    return IsNestedContext::No;
 }
 
 ExceptionOr<void> InspectorStyleSheet::setRuleHeaderText(const InspectorCSSId& id, const String& newHeaderText)
@@ -1127,7 +1126,7 @@ ExceptionOr<CSSStyleRule*> InspectorStyleSheet::addRule(const String& selector)
     if (!m_pageStyleSheet)
         return Exception { NotSupportedError };
 
-    if (!isValidRuleHeaderText(selector, StyleRuleType::Style, m_pageStyleSheet->ownerDocument(), CSSSelectorParser::IsNestedContext::No))
+    if (!isValidRuleHeaderText(selector, StyleRuleType::Style, m_pageStyleSheet->ownerDocument(), IsNestedContext::No))
         return Exception { SyntaxError };
 
     auto text = this->text();

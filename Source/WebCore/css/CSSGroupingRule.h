@@ -29,10 +29,12 @@
 namespace WebCore {
 
 class CSSRuleList;
+class StyleRule;
 class StyleRuleGroup;
 
 class CSSGroupingRule : public CSSRule {
 public:
+    using UnderlyingRule = std::variant<Ref<StyleRuleGroup>,Ref<StyleRule>>;
     virtual ~CSSGroupingRule();
 
     WEBCORE_EXPORT CSSRuleList& cssRules() const;
@@ -43,8 +45,9 @@ public:
 
 protected:
     CSSGroupingRule(StyleRuleGroup&, CSSStyleSheet* parent);
-    const StyleRuleGroup& groupRule() const { return m_groupRule; }
-    StyleRuleGroup& groupRule() { return m_groupRule; }
+    CSSGroupingRule(StyleRule&, CSSStyleSheet* parent);
+    const StyleRuleGroup& groupRule() const { ASSERT(hasGroupRule()); return std::get<Ref<StyleRuleGroup>>(m_groupRule); }
+    StyleRuleGroup& groupRule() { ASSERT(hasGroupRule()); return std::get<Ref<StyleRuleGroup>>(m_groupRule); }
     void reattach(StyleRuleBase&) override;
     void appendCSSTextForItems(StringBuilder&) const;
 
@@ -52,7 +55,8 @@ protected:
     void cssTextForDeclsAndRules(StringBuilder& decls, StringBuilder& rules) const;
 
 private:
-    Ref<StyleRuleGroup> m_groupRule;
+    bool hasGroupRule() const;
+    UnderlyingRule m_groupRule;
     mutable Vector<RefPtr<CSSRule>> m_childRuleCSSOMWrappers;
     mutable std::unique_ptr<CSSRuleList> m_ruleListCSSOMWrapper;
 };

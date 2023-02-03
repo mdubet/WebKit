@@ -43,12 +43,12 @@ namespace WebCore {
 static AtomString serializeANPlusB(const std::pair<int, int>&);
 static bool consumeANPlusB(CSSParserTokenRange&, std::pair<int, int>&);
 
-std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange range, const CSSParserContext& context, StyleSheetContents* styleSheet, CSSSelectorParser::IsNestedContext isNestedContext)
+std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange range, const CSSParserContext& context, StyleSheetContents* styleSheet, IsNestedContext isNestedContext)
 {
     CSSSelectorParser parser(context, styleSheet, isNestedContext);
     range.consumeWhitespace();
     auto consume = [&] () {
-        if (context.cssNestingEnabled && isNestedContext == CSSSelectorParser::IsNestedContext::Yes)
+        if (context.cssNestingEnabled && isNestedContext == IsNestedContext::Yes)
             return parser.consumeNestedSelectorList(range);
 
         return parser.consumeComplexSelectorList(range);
@@ -59,7 +59,7 @@ std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange range, const
     return result;
 }
 
-CSSSelectorParser::CSSSelectorParser(const CSSParserContext& context, StyleSheetContents* styleSheet, CSSSelectorParser::IsNestedContext isNestedContext)
+CSSSelectorParser::CSSSelectorParser(const CSSParserContext& context, StyleSheetContents* styleSheet, IsNestedContext isNestedContext)
     : m_context(context)
     , m_styleSheet(styleSheet)
     , m_isNestedContext(isNestedContext)
@@ -105,7 +105,11 @@ CSSSelectorList CSSSelectorParser::consumeRelativeSelectorList(CSSParserTokenRan
 
 CSSSelectorList CSSSelectorParser::consumeNestedSelectorList(CSSParserTokenRange& range)
 {
-    return consumeSelectorList(range, [&] (CSSParserTokenRange& range) {
+    return consumeSelectorList(range, [&] (CSSParserTokenRange& range) -> std::unique_ptr<CSSParserSelector> {
+        // Nested selector should not start with an ident
+        if (range.peek().type() == IdentToken)
+            return { };
+
         auto selector = consumeComplexSelector(range);
         if (selector)
             return selector;

@@ -248,8 +248,8 @@ void RuleSetBuilder::addStyleRule(const StyleRuleWithNesting& rule)
     
     // Process nested rules
     m_styleRuleStack.append(&selectorList);
-    for (auto& nestedRule : rule.nestedRules())
-        addChildRule(nestedRule.ptr());
+    for (auto& nestedRule : rule.childRules())
+        addChildRule(nestedRule);
     m_styleRuleStack.removeLast();
 }
 

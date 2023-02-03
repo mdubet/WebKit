@@ -60,6 +60,11 @@ inline bool operator!=(const ResolvedURL& a, const ResolvedURL& b)
     return !(a == b);
 }
 
+enum class IsNestedContext : bool {
+    Yes,
+    No
+};
+
 struct CSSParserContext {
     WTF_MAKE_STRUCT_FAST_ALLOCATED;
 

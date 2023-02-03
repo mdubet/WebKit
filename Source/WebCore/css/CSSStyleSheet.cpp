@@ -168,6 +168,17 @@ Node* CSSStyleSheet::ownerNode() const
     return m_ownerNode.get();
 }
 
+void CSSStyleSheet::ensureStyleRuleWithNestingonly()
+{
+    /*
+    auto& rules = m_contents->childRules();
+
+    auto currentRule = rules.first();
+    */
+ 
+    
+}
+
 CSSStyleSheet::WhetherContentsWereClonedForMutation CSSStyleSheet::willMutateRules()
 {
     // If we are the only client it is safe to mutate.

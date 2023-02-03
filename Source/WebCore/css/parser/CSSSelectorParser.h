@@ -42,15 +42,8 @@ class CSSSelectorList;
 class StyleSheetContents;
 class StyleRule;
 
-struct CSSParserContext;
-
 class CSSSelectorParser {
 public:
-    enum class IsNestedContext : bool {
-        Yes,
-        No
-    };
-
     CSSSelectorParser(const CSSParserContext&, StyleSheetContents*, IsNestedContext = IsNestedContext::No);
 
     CSSSelectorList consumeComplexSelectorList(CSSParserTokenRange&);
@@ -109,6 +102,6 @@ private:
 };
 
 
-std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange, const CSSParserContext&, StyleSheetContents*, CSSSelectorParser::IsNestedContext);
+std::optional<CSSSelectorList> parseCSSSelector(CSSParserTokenRange, const CSSParserContext&, StyleSheetContents*, IsNestedContext);
 
 } // namespace WebCore
