@@ -35,62 +35,56 @@
 #include "CSSValueKeywords.h"
 #include "Color.h"
 #include "ColorInterpolationMethod.h"
-#include <wtf/OptionSet.h>
+#include <wtf/Ref.h>
 #include <wtf/UniqueRef.h>
 
 namespace WebCore {
 
 enum class StyleColorOptions : uint8_t {
-    ForVisitedLink = 1 << 0,
-    UseSystemAppearance = 1 << 1,
-    UseDarkAppearance = 1 << 2,
-    UseElevatedUserInterfaceLevel = 1 << 3
+    ForVisitedLink                 = 1 << 0,
+    UseSystemAppearance            = 1 << 1,
+    UseDarkAppearance              = 1 << 2,
+    UseElevatedUserInterfaceLevel  = 1 << 3
 };
 
 struct StyleColorMix;
 struct StyleCurrentColor { };
 
+class ExtendedStyleColor {
+public:
+    using Kind = std::variant<UniqueRef<StyleColorMix>, StyleCurrentColor>;
+    ExtendedStyleColor(StyleColorMix);
+    ExtendedStyleColor(StyleCurrentColor);
+    Kind m_color;
+};
+
 class StyleColor {
 public:
     // The default constructor initializes to currentcolor to preserve old behavior,
     // we might want to change it to invalid color at some point.
-    StyleColor()
-        : m_color { StyleCurrentColor { } }
-    {
-    }
+    StyleColor();
+    StyleColor(const Color& color);
+    StyleColor(const SRGBA<uint8_t>& color);
+    StyleColor(const StyleColor& other);
+    StyleColor& operator=(const StyleColor& other);
+    explicit StyleColor(const ExtendedStyleColor& color);
 
-    StyleColor(const Color& color)
-        : m_color { Color { color } }
-    {
-    }
-
-    StyleColor(const SRGBA<uint8_t>& color)
-        : m_color { Color { color } }
-    {
-    }
-
+    /*
     StyleColor(StyleColorMix&& colorMix)
         : m_color { resolveAbsoluteComponents(WTFMove(colorMix)) }
     {
     }
-
-    StyleColor(const StyleColor& other)
-        : m_color { copy(other.m_color) }
-    {
-    }
-
-    StyleColor& operator=(const StyleColor& other)
-    {
-        m_color = copy(other.m_color);
-        return *this;
-    }
+    */
 
     StyleColor(StyleColor&&) = default;
     StyleColor& operator=(StyleColor&&) = default;
+    StyleColor(Color&& color);
 
     WEBCORE_EXPORT ~StyleColor();
 
-    static StyleColor currentColor() { return StyleColor { StyleCurrentColor { } }; }
+    static StyleColor currentColor() { 
+        return { };
+    }
 
     static Color colorFromKeyword(CSSValueID, OptionSet<StyleColorOptions>);
     static Color colorFromAbsoluteKeyword(CSSValueID);
@@ -99,14 +93,18 @@ public:
     static bool isAbsoluteColorKeyword(CSSValueID);
     static bool isCurrentColorKeyword(CSSValueID id) { return id == CSSValueCurrentcolor; }
     static bool isCurrentColor(const CSSPrimitiveValue& value) { return isCurrentColorKeyword(value.valueID()); }
+    const ExtendedStyleColor& asExtendedStyleColor() const;
+    bool isExtendedStyleColor() const;
+    void setExtendedStyleColor(const ExtendedStyleColor&);
+
 
     WEBCORE_EXPORT static bool isSystemColorKeyword(CSSValueID);
     static bool isDeprecatedSystemColorKeyword(CSSValueID);
 
     enum class CSSColorType : uint8_t {
-        Absolute = 1 << 0,
-        Current = 1 << 1,
-        System = 1 << 2,
+        Absolute =    1 << 0,
+        Current =     1 << 1,
+        System =      1 << 2,
     };
 
     // https://drafts.csswg.org/css-color-4/#typedef-color
@@ -120,24 +118,14 @@ public:
 
     WEBCORE_EXPORT Color resolveColor(const Color& colorPropertyValue) const;
 
-    friend bool operator==(const StyleColor&, const StyleColor&);
+    bool operator==(const StyleColor&) const = default;
     friend WEBCORE_EXPORT String serializationForCSS(const StyleColor&);
     friend void serializationForCSS(StringBuilder&, const StyleColor&);
     friend WTF::TextStream& operator<<(WTF::TextStream&, const StyleColor&);
     String debugDescription() const;
 
 private:
-    using ColorKind = std::variant<Color, StyleCurrentColor, UniqueRef<StyleColorMix>>;
-
-    StyleColor(ColorKind&& color)
-        : m_color { WTFMove(color) }
-    {
-    }
-
-    static ColorKind resolveAbsoluteComponents(StyleColorMix&&);
-    WEBCORE_EXPORT static ColorKind copy(const ColorKind&);
-
-    ColorKind m_color;
+    Color m_color;
 };
 
 struct StyleColorMix {
@@ -146,25 +134,14 @@ struct StyleColorMix {
     struct Component {
         StyleColor color;
         std::optional<double> percentage;
+        bool operator==(const StyleColorMix::Component&) const = default;
     };
 
+    bool operator==(const StyleColorMix&) const = default;
     ColorInterpolationMethod colorInterpolationMethod;
     Component mixComponents1;
     Component mixComponents2;
 };
-
-inline bool operator==(const StyleColorMix::Component& a, const StyleColorMix::Component& b)
-{
-    return a.color == b.color
-        && a.percentage == b.percentage;
-}
-
-inline bool operator==(const StyleColorMix& a, const StyleColorMix& b)
-{
-    return a.colorInterpolationMethod == b.colorInterpolationMethod
-        && a.mixComponents1 == b.mixComponents1
-        && a.mixComponents2 == b.mixComponents2;
-}
 
 inline bool operator==(const UniqueRef<StyleColorMix>& a, const UniqueRef<StyleColorMix>& b)
 {
@@ -176,21 +153,25 @@ constexpr bool operator==(const StyleCurrentColor&, const StyleCurrentColor&)
     return true;
 }
 
-inline bool operator==(const StyleColor& a, const StyleColor& b)
-{
-    return a.m_color == b.m_color;
-}
-
+WTF::TextStream& operator<<(WTF::TextStream&, const ExtendedStyleColor&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleColorMix&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleCurrentColor&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleColor&);
 
+void serializationForCSS(StringBuilder&, const ExtendedStyleColor&);
 void serializationForCSS(StringBuilder&, const StyleColorMix&);
 void serializationForCSS(StringBuilder&, const StyleCurrentColor&);
 void serializationForCSS(StringBuilder&, const StyleColor&);
 
-WEBCORE_EXPORT String serializationForCSS(const StyleColorMix&);
-WEBCORE_EXPORT String serializationForCSS(const StyleCurrentColor&);
-WEBCORE_EXPORT String serializationForCSS(const StyleColor&);
+template <class T, class... Ts>
+struct is_any : std::disjunction<std::is_same<T, Ts>...> {};
+
+template <typename T, std::enable_if_t<is_any<T, ExtendedStyleColor,StyleColorMix,StyleCurrentColor,StyleColor>::value>* = 0>
+WEBCORE_EXPORT String serializationForCSS(const T& color)
+{
+    StringBuilder builder;
+    serializationForCSS(builder, color);
+    return builder.toString();
+}
 
 } // namespace WebCore

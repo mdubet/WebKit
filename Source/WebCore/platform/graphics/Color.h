@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003-2021 Apple Inc. All rights reserved.
+ * Copyright (C) 2003-2023 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -52,6 +52,7 @@ namespace WebCore {
 //    - Special "invalid color" state, treated as transparent black but distinguishable
 //    - 4x 8-bit (0-255) sRGBA, stored inline, no allocation
 //    - 4x float color components + color space, stored in a reference counted sub-object
+//    - Pointer to an ExtendedStyleColor object for other cases (color-mix,...)
 
 class Color {
     WTF_MAKE_FAST_ALLOCATED;
@@ -178,6 +179,7 @@ public:
     String debugDescription() const;
 
 private:
+    friend class StyleColor;
     friend void add(Hasher&, const Color&);
 
     class OutOfLineComponents : public ThreadSafeRefCounted<OutOfLineComponents> {
@@ -213,6 +215,7 @@ private:
         OutOfLine                       = 1 << 3,
         HashTableEmptyValue             = 1 << 4,
         HashTableDeletedValue           = 1 << 5,
+        ExtendedStyleColor              = 1 << 6,
     };
     static OptionSet<FlagsIncludingPrivate> toFlagsIncludingPrivate(OptionSet<Flags> flags) { return OptionSet<FlagsIncludingPrivate>::fromRaw(flags.toRaw()); }
 
@@ -245,12 +248,14 @@ private:
     static uint64_t encodedColorSpace(ColorSpace);
     static uint64_t encodedInlineColor(SRGBA<uint8_t>);
     static uint64_t encodedPackedInlineColor(PackedColor::RGBA);
+    static uint64_t encodedPointer(const void*);
     static uint64_t encodedOutOfLineComponents(Ref<OutOfLineComponents>&&);
 
     static OptionSet<FlagsIncludingPrivate> decodedFlags(uint64_t);
     static ColorSpace decodedColorSpace(uint64_t);
     static SRGBA<uint8_t> decodedInlineColor(uint64_t);
     static PackedColor::RGBA decodedPackedInlineColor(uint64_t);
+    static void* decodedPointer(uint64_t);
     static OutOfLineComponents& decodedOutOfLineComponents(uint64_t);
 
     static constexpr uint64_t invalidColorAndFlags = 0;
@@ -487,13 +492,18 @@ inline uint64_t Color::encodedPackedInlineColor(PackedColor::RGBA color)
     return color.value;
 }
 
-inline uint64_t Color::encodedOutOfLineComponents(Ref<OutOfLineComponents>&& outOfLineComponents)
+inline uint64_t Color::encodedPointer(const void* pointer)
 {
 #if CPU(ADDRESS64)
-    return bitwise_cast<uint64_t>(&outOfLineComponents.leakRef());
+    return bitwise_cast<uint64_t>(pointer);
 #else
-    return bitwise_cast<uint32_t>(&outOfLineComponents.leakRef());
+    return bitwise_cast<uint32_t>(pointer);
 #endif
+}
+
+inline uint64_t Color::encodedOutOfLineComponents(Ref<OutOfLineComponents>&& outOfLineComponents)
+{
+    return encodedPointer(&outOfLineComponents.leakRef());
 }
 
 inline OptionSet<Color::FlagsIncludingPrivate> Color::decodedFlags(uint64_t value)
@@ -518,10 +528,15 @@ inline PackedColor::RGBA Color::decodedPackedInlineColor(uint64_t value)
 
 inline Color::OutOfLineComponents& Color::decodedOutOfLineComponents(uint64_t value)
 {
+    return *static_cast<OutOfLineComponents*>(decodedPointer(value));
+}
+
+inline void* Color::decodedPointer(uint64_t value)
+{
 #if CPU(ADDRESS64)
-    return *bitwise_cast<OutOfLineComponents*>(value & colorValueMask);
+    return bitwise_cast<void*>(value & colorValueMask);
 #else
-    return *bitwise_cast<OutOfLineComponents*>(static_cast<uint32_t>(value & colorValueMask));
+    return bitwise_cast<void*>(static_cast<uint32_t>(value & colorValueMask));
 #endif
 }
 

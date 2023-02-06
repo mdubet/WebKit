@@ -42,25 +42,88 @@
 
 namespace WebCore {
 
-static std::optional<Color> resolveAbsoluteComponents(const StyleColorMix&);
+//static std::optional<Color> resolveAbsoluteComponents(const StyleColorMix&);
 static Color resolveColor(const StyleColorMix&, const Color& currentColor);
 
-StyleColor::ColorKind StyleColor::copy(const StyleColor::ColorKind& other)
+bool StyleColor::isAbsoluteColor() const
 {
-    return WTF::switchOn(other,
-        [] (const Color& absoluteColor) -> StyleColor::ColorKind {
-            return absoluteColor;
-        },
-        [] (const StyleCurrentColor& currentColor) -> StyleColor::ColorKind {
-            return currentColor;
-        },
-        [] (const UniqueRef<StyleColorMix>& colorMix) -> StyleColor::ColorKind {
-            return makeUniqueRef<StyleColorMix>(colorMix.get());
-        }
-    );
+    return !isExtendedStyleColor();
 }
 
-StyleColor::~StyleColor() = default;
+bool StyleColor::isExtendedStyleColor() const
+{
+    return m_color.flags().contains(Color::FlagsIncludingPrivate::ExtendedStyleColor);
+}
+
+void StyleColor::setExtendedStyleColor(const ExtendedStyleColor& color)
+{
+    auto flags = { Color::FlagsIncludingPrivate::Valid, Color::FlagsIncludingPrivate::ExtendedStyleColor};
+    m_color.m_colorAndFlags = Color::encodedPointer(static_cast<const void*>(&color)) | Color::encodedFlags(flags);
+    ASSERT(isExtendedStyleColor());
+}
+
+const ExtendedStyleColor& StyleColor::asExtendedStyleColor() const
+{
+    ASSERT(isExtendedStyleColor());
+    return *static_cast<ExtendedStyleColor*>(Color::decodedPointer(m_color.m_colorAndFlags));
+}
+
+StyleColor::StyleColor()
+{
+    auto currentColor = new ExtendedStyleColor { StyleCurrentColor { } };
+    setExtendedStyleColor(*currentColor);
+}
+
+StyleColor::StyleColor(const Color& color)
+    : m_color {  color }
+{
+}
+
+StyleColor::StyleColor(const SRGBA<uint8_t>& color)
+    : m_color { color }
+{
+}
+
+StyleColor::StyleColor(const ExtendedStyleColor& color)
+{
+    setExtendedStyleColor(color);
+}
+
+StyleColor::StyleColor(const StyleColor& other)
+    : m_color { other.m_color }
+{
+}
+
+StyleColor::StyleColor(Color&& color)
+    : m_color { WTFMove(color) }
+{
+}
+
+StyleColor& StyleColor::operator=(const StyleColor& other)
+{
+    m_color = other.m_color;
+    return *this;
+}
+
+StyleColor::~StyleColor()
+{
+    /*
+    if (isExtendedStyleColor())
+        delete &asExtendedStyleColor();
+    */
+}
+
+ExtendedStyleColor::ExtendedStyleColor(StyleColorMix color)
+: m_color(makeUniqueRef<StyleColorMix>(color))
+{
+    
+}
+
+ExtendedStyleColor::ExtendedStyleColor(StyleCurrentColor color)
+: m_color(color)
+{
+    
+}
 
 Color StyleColor::colorFromAbsoluteKeyword(CSSValueID keyword)
 {
@@ -140,10 +203,10 @@ String StyleColor::debugDescription() const
 
 Color StyleColor::resolveColor(const Color& currentColor) const
 {
-    return WTF::switchOn(m_color,
-        [&] (const Color& absoluteColor) -> Color {
-            return absoluteColor;
-        },
+    if (isAbsoluteColor())
+        return m_color;
+
+    return WTF::switchOn(asExtendedStyleColor().m_color,
         [&] (const StyleCurrentColor&) -> Color {
             return currentColor;
         },
@@ -155,10 +218,10 @@ Color StyleColor::resolveColor(const Color& currentColor) const
 
 bool StyleColor::containsCurrentColor() const
 {
-    return WTF::switchOn(m_color,
-        [&] (const Color&) -> bool {
-            return false;
-        },
+    if (isAbsoluteColor())
+        return false;
+
+    return WTF::switchOn(asExtendedStyleColor().m_color,
         [&] (const StyleCurrentColor&) -> bool {
             return true;
         },
@@ -170,34 +233,38 @@ bool StyleColor::containsCurrentColor() const
 
 bool StyleColor::isCurrentColor() const
 {
-    return std::holds_alternative<StyleCurrentColor>(m_color);
+    if (isAbsoluteColor())
+        return false;
+
+    return std::holds_alternative<StyleCurrentColor>(asExtendedStyleColor().m_color);
 }
 
 bool StyleColor::isColorMix() const
 {
-    return std::holds_alternative<UniqueRef<StyleColorMix>>(m_color);
-}
+    if (isAbsoluteColor())
+        return false;
 
-bool StyleColor::isAbsoluteColor() const
-{
-    return std::holds_alternative<Color>(m_color);
+    return std::holds_alternative<UniqueRef<StyleColorMix>>(asExtendedStyleColor().m_color);
 }
 
 const Color& StyleColor::absoluteColor() const
 {
     ASSERT(isAbsoluteColor());
-    return std::get<Color>(m_color);
+    return m_color;
 }
 
-StyleColor::ColorKind StyleColor::resolveAbsoluteComponents(StyleColorMix&& colorMix)
+/*
+Color StyleColor::resolveAbsoluteComponents(StyleColorMix&& colorMix)
 {
     if (auto absoluteColor = WebCore::resolveAbsoluteComponents(colorMix))
-        return { WTFMove(*absoluteColor) };
-    return { makeUniqueRef<StyleColorMix>(WTFMove(colorMix)) };
+        return *absoluteColor;
+    return { };
 }
+*/
 
 // MARK: color-mix()
 
+/*
 std::optional<Color> resolveAbsoluteComponents(const StyleColorMix& colorMix)
 {
     if (!colorMix.mixComponents1.color.isAbsoluteColor() || !colorMix.mixComponents2.color.isAbsoluteColor())
@@ -215,6 +282,7 @@ std::optional<Color> resolveAbsoluteComponents(const StyleColorMix& colorMix)
         }
     });
 }
+*/
 
 Color resolveColor(const StyleColorMix& colorMix, const Color& currentColor)
 {
@@ -258,10 +326,15 @@ void serializationForCSS(StringBuilder& builder, const StyleCurrentColor&)
 
 void serializationForCSS(StringBuilder& builder, const StyleColor& color)
 {
+    if (color.isAbsoluteColor())
+        return serializationForCSS(builder, color.absoluteColor());
+
+    serializationForCSS(builder, color.asExtendedStyleColor());
+}
+
+void serializationForCSS(StringBuilder& builder, const ExtendedStyleColor& color)
+{
     WTF::switchOn(color.m_color,
-        [&] (const Color& absoluteColor) {
-            serializationForCSS(builder, absoluteColor);
-        },
         [&] (const StyleCurrentColor& currentColor) {
             serializationForCSS(builder, currentColor);
         },
@@ -271,31 +344,11 @@ void serializationForCSS(StringBuilder& builder, const StyleColor& color)
     );
 }
 
-String serializationForCSS(const StyleColorMix& colorMix)
-{
-    StringBuilder builder;
-    serializationForCSS(builder, colorMix);
-    return builder.toString();
-}
-
-String serializationForCSS(const StyleCurrentColor&)
-{
-    return "currentcolor"_s;
-}
-
 String serializationForCSS(const StyleColor& color)
 {
-    return WTF::switchOn(color.m_color,
-        [&] (const Color& absoluteColor) {
-            return serializationForCSS(absoluteColor);
-        },
-        [&] (const StyleCurrentColor& currentColor) {
-            return serializationForCSS(currentColor);
-        },
-        [&] (const UniqueRef<StyleColorMix>& colorMix) {
-            return serializationForCSS(colorMix);
-        }
-    );
+    StringBuilder builder;
+    serializationForCSS(builder, color);
+    return builder.toString();
 }
 
 // MARK: - TextStream.
@@ -325,14 +378,9 @@ WTF::TextStream& operator<<(WTF::TextStream& out, const StyleCurrentColor&)
     return out;
 }
 
-WTF::TextStream& operator<<(WTF::TextStream& out, const StyleColor& color)
+WTF::TextStream& operator<<(WTF::TextStream& out, const ExtendedStyleColor& color)
 {
-    out << "StyleColor[";
-
     WTF::switchOn(color.m_color,
-        [&] (const Color& absoluteColor) {
-            out << "absoluteColor(" << absoluteColor.debugDescription() << ")";
-        },
         [&] (const StyleCurrentColor& currentColor) {
             out << currentColor;
         },
@@ -340,6 +388,18 @@ WTF::TextStream& operator<<(WTF::TextStream& out, const StyleColor& color)
             out << colorMix.get();
         }
     );
+    return out;
+}
+
+WTF::TextStream& operator<<(WTF::TextStream& out, const StyleColor& color)
+{
+    out << "StyleColor[";
+
+    if (color.isAbsoluteColor()) {
+        out << "absoluteColor(" << color.absoluteColor().debugDescription() << ")";
+    } else {
+        out << color.asExtendedStyleColor();
+    }
 
     out << "]";
     return out;
