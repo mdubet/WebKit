@@ -34,7 +34,6 @@ class StyleRuleGroup;
 
 class CSSGroupingRule : public CSSRule {
 public:
-    using UnderlyingRule = std::variant<Ref<StyleRuleGroup>,Ref<StyleRule>>;
     virtual ~CSSGroupingRule();
 
     WEBCORE_EXPORT CSSRuleList& cssRules() const;
@@ -46,8 +45,8 @@ public:
 protected:
     CSSGroupingRule(StyleRuleGroup&, CSSStyleSheet* parent);
     CSSGroupingRule(StyleRule&, CSSStyleSheet* parent);
-    const StyleRuleGroup& groupRule() const { ASSERT(hasGroupRule()); return std::get<Ref<StyleRuleGroup>>(m_groupRule); }
-    StyleRuleGroup& groupRule() { ASSERT(hasGroupRule()); return std::get<Ref<StyleRuleGroup>>(m_groupRule); }
+    const StyleRuleGroup& groupRule() const { ASSERT(hasGroupRule()); return std::get<Ref<StyleRuleGroup>>(m_rule); }
+    StyleRuleGroup& groupRule() { ASSERT(hasGroupRule()); return std::get<Ref<StyleRuleGroup>>(m_rule); }
     void reattach(StyleRuleBase&) override;
     void appendCSSTextForItems(StringBuilder&) const;
 
@@ -56,7 +55,7 @@ protected:
 
 private:
     bool hasGroupRule() const;
-    UnderlyingRule m_groupRule;
+    std::variant<Ref<StyleRuleGroup>,Ref<StyleRule>> m_rule;
     mutable Vector<RefPtr<CSSRule>> m_childRuleCSSOMWrappers;
     mutable std::unique_ptr<CSSRuleList> m_ruleListCSSOMWrapper;
 };

@@ -42,14 +42,14 @@ namespace WebCore {
 
 CSSGroupingRule::CSSGroupingRule(StyleRuleGroup& groupRule, CSSStyleSheet* parent)
     : CSSRule(parent)
-    , m_groupRule(groupRule)
+    , m_rule(groupRule)
     , m_childRuleCSSOMWrappers(groupRule.childRules().size())
 {
 }
 
 CSSGroupingRule::CSSGroupingRule(StyleRule& styleRule, CSSStyleSheet* parent)
     : CSSRule(parent)
-    , m_groupRule(styleRule)
+    , m_rule(styleRule)
     , m_childRuleCSSOMWrappers(0)
 {
 }
@@ -107,7 +107,9 @@ ExceptionOr<unsigned> CSSGroupingRule::insertRule(const String& ruleString, unsi
 
 ExceptionOr<void> CSSGroupingRule::deleteRule(unsigned index)
 {
-    ASSERT(hasGroupRule());
+    if (!hasGroupRule())
+        return Exception { IndexSizeError };
+
     ASSERT(m_childRuleCSSOMWrappers.size() == groupRule().childRules().size());
 
     if (index >= groupRule().childRules().size()) {
@@ -127,7 +129,7 @@ ExceptionOr<void> CSSGroupingRule::deleteRule(unsigned index)
     return { };
 }
 
-bool CSSGroupingRule::hasGroupRule() const { return std::holds_alternative<Ref<StyleRuleGroup>>(m_groupRule); }
+bool CSSGroupingRule::hasGroupRule() const { return std::holds_alternative<Ref<StyleRuleGroup>>(m_rule); }
 
 void CSSGroupingRule::appendCSSTextForItems(StringBuilder& builder) const
 {
@@ -216,7 +218,7 @@ void CSSGroupingRule::reattach(StyleRuleBase& rule)
     if (!hasGroupRule())
         return;
     
-    m_groupRule = downcast<StyleRuleGroup>(rule);
+    m_rule = downcast<StyleRuleGroup>(rule);
     for (unsigned i = 0; i < m_childRuleCSSOMWrappers.size(); ++i) {
         if (m_childRuleCSSOMWrappers[i])
             m_childRuleCSSOMWrappers[i]->reattach(*groupRule().childRules()[i]);
