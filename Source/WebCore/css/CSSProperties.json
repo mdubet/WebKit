@@ -7493,6 +7493,9 @@
         },
         "-webkit-backdrop-filter": {
             "codegen-properties": {
+                "aliases": [
+                    "backdrop-filter"
+                ],
                 "conditional-converter": "FilterOperations",
                 "enable-if": "ENABLE_FILTERS_LEVEL_2",
                 "parser-function": "consumeFilter",
