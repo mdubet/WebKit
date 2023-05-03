@@ -44,6 +44,17 @@ CSSSelectorList::CSSSelectorList(const CSSSelectorList& other)
         new (NotNull, &m_selectorArray[i]) CSSSelector(other.m_selectorArray[i]);
 }
 
+CSSSelectorList CSSSelectorList::deepCopy() const
+{
+    Vector<std::unique_ptr<CSSParserSelector>> result;
+    for (unsigned i = 0; i < componentCount(); ++i) {
+        auto selector = m_selectorArray[i].deepCopy();
+        auto parserSelector = makeUnique<CSSParserSelector>(WTFMove(selector));
+        result.append(WTFMove(parserSelector));
+    }
+    return CSSSelectorList { WTFMove(result) };
+}
+
 CSSSelectorList::CSSSelectorList(Vector<std::unique_ptr<CSSParserSelector>>&& selectorVector)
 {
     ASSERT_WITH_SECURITY_IMPLICATION(!selectorVector.isEmpty());

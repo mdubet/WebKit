@@ -957,6 +957,35 @@ bool CSSSelector::RareData::matchNth(int count)
     return count == b;
 }
 
+CSSSelector CSSSelector::deepCopy() const
+{
+    CSSSelector result;
+    result.m_relation = m_relation;
+    result.m_match = m_match;
+    result.m_pseudoType = m_pseudoType;
+    result.m_isLastInSelectorList= m_isLastInSelectorList;
+    result.m_isFirstInTagHistory = m_isFirstInTagHistory;
+    result.m_isLastInTagHistory= m_isLastInTagHistory;
+    result.m_hasRareData = m_hasRareData;
+    result.m_isForPage = m_isForPage;
+    result.m_tagIsForNamespaceRule= m_tagIsForNamespaceRule;
+    result.m_caseInsensitiveAttributeValueMatching= m_caseInsensitiveAttributeValueMatching;
+
+    if (m_hasRareData) {
+        auto copied = m_data.rareData->deepCopy();
+        result.m_data.rareData = &copied.leakRef();
+        result.m_data.rareData->ref();
+    } else if (match() == Tag) {
+        result.m_data.tagQName = m_data.tagQName;
+        result.m_data.rareData->ref();
+    } else if (m_data.value) {
+        result.m_data.value = m_data.value;
+        result.m_data.rareData->ref();
+    }
+
+    return result;
+}
+
 CSSSelector::CSSSelector(const CSSSelector& other)
     : m_relation(other.m_relation)
     , m_match(other.m_match)
@@ -969,9 +998,9 @@ CSSSelector::CSSSelector(const CSSSelector& other)
     , m_tagIsForNamespaceRule(other.m_tagIsForNamespaceRule)
     , m_caseInsensitiveAttributeValueMatching(other.m_caseInsensitiveAttributeValueMatching)
 {
+    // Manually increment the reference counter (because we store it as a raw pointer, not as a Ref)
     if (other.m_hasRareData) {
-        auto copied = other.m_data.rareData->deepCopy(); 
-        m_data.rareData = &copied.leakRef();
+        m_data.rareData = other.m_data.rareData;
         m_data.rareData->ref();
     } else if (other.match() == Tag) {
         m_data.tagQName = other.m_data.tagQName;

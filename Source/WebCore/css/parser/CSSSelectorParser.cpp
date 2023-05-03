@@ -1217,7 +1217,7 @@ bool CSSSelectorParser::containsUnknownWebKitPseudoElements(const CSSSelector& c
 CSSSelectorList CSSSelectorParser::resolveNestingParent(const CSSSelectorList& nestedSelectorList, const CSSSelectorList* parentResolvedSelectorList)
 {
     Vector<std::unique_ptr<CSSParserSelector>> result;
-    CSSSelectorList copiedSelectorList { nestedSelectorList };
+    CSSSelectorList copiedSelectorList = nestedSelectorList.deepCopy();
     auto selector = copiedSelectorList.first();
     while (selector) {
         if (selector->hasExplicitNestingParent()) {

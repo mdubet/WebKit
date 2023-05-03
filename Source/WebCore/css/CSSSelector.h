@@ -48,7 +48,9 @@ struct PossiblyQuotedIdentifier {
         WTF_MAKE_FAST_ALLOCATED;
     public:
         CSSSelector() = default;
+        CSSSelector(CSSSelector&&) = default;
         CSSSelector(const CSSSelector&);
+        CSSSelector deepCopy() const;
         explicit CSSSelector(const QualifiedName&, bool tagIsForNamespaceRule = false);
 
         ~CSSSelector();
@@ -343,7 +345,6 @@ struct PossiblyQuotedIdentifier {
         CSSSelector* tagHistory() { return m_isLastInTagHistory ? nullptr : this + 1; }
 
         CSSSelector& operator=(const CSSSelector&) = delete;
-        CSSSelector(CSSSelector&&) = delete;
 
         struct RareData : public RefCounted<RareData> {
             WTF_MAKE_STRUCT_FAST_ALLOCATED_WITH_HEAP_IDENTIFIER(CSSSelectorRareData);

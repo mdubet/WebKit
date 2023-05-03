@@ -39,6 +39,7 @@ public:
     CSSSelectorList() = default;
     CSSSelectorList(const CSSSelectorList&);
     CSSSelectorList(CSSSelectorList&&) = default;
+    CSSSelectorList deepCopy() const;
     explicit CSSSelectorList(Vector<std::unique_ptr<CSSParserSelector>>&&);
     explicit CSSSelectorList(UniqueArray<CSSSelector>&& array)
         : m_selectorArray(WTFMove(array)) { }
