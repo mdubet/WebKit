@@ -342,7 +342,6 @@ struct PossiblyQuotedIdentifier {
 #endif
 
         unsigned simpleSelectorSpecificityForPage() const;
-        CSSSelector* tagHistory() { return m_isLastInTagHistory ? nullptr : this + 1; }
 
         CSSSelector& operator=(const CSSSelector&) = delete;
 
