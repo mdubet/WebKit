@@ -53,6 +53,7 @@
 #include "StyleResolver.h"
 #include "TextRun.h"
 #include <math.h>
+#include <wtf/Assertions.h>
 #include <wtf/IsoMallocInlines.h>
 
 #if PLATFORM(IOS_FAMILY)
@@ -220,6 +221,8 @@ void RenderMenuList::updateOptionsWidth()
         } else if (!text.isEmpty()) {
             const FontCascade& font = style().fontCascade();
             TextRun run = RenderBlock::constructTextRun(text, style());
+            WTFLogAlways("font.width(run) %f", font.width(run));
+            WTFLogAlways("font.width(run) %f", font.width(run));
             maxOptionWidth = std::max(maxOptionWidth, font.width(run));
         }
     }

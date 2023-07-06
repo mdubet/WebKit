@@ -268,17 +268,24 @@ float FontCascade::width(const TextRun& run, HashSet<const Font*>* fallbackFonts
     bool hasWordSpacingOrLetterSpacing = wordSpacing() || letterSpacing();
     float* cacheEntry = m_fonts->widthCache().add(run, std::numeric_limits<float>::quiet_NaN(), enableKerning() || requiresShaping(), hasWordSpacingOrLetterSpacing, glyphOverflow);
     if (cacheEntry && !std::isnan(*cacheEntry))
+    {
+        WTFLogAlways("value from cache width %f", *cacheEntry);
         return *cacheEntry;
+    }
 
     HashSet<const Font*> localFallbackFonts;
     if (!fallbackFonts)
         fallbackFonts = &localFallbackFonts;
 
     float result;
-    if (codePathToUse == CodePath::Complex)
+    if (codePathToUse == CodePath::Complex) {
         result = floatWidthForComplexText(run, fallbackFonts, glyphOverflow);
-    else
+        //WTFLogAlways("complex computed width %f", result);
+    }
+    else {
         result = floatWidthForSimpleText(run, fallbackFonts, glyphOverflow);
+        //WTFLogAlways("simple computed width %f", result);
+    }
 
     if (cacheEntry && fallbackFonts->isEmpty())
         *cacheEntry = result;
