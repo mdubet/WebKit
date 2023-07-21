@@ -968,9 +968,10 @@ CSSSelector::CSSSelector(const CSSSelector& other)
     , m_caseInsensitiveAttributeValueMatching(other.m_caseInsensitiveAttributeValueMatching)
 {
     // Manually ref count the m_data union because they are stored as raw ptr, not as Ref.
-    if (other.m_hasRareData)
-        m_data.rareData = &other.m_data.rareData->deepCopy().leakRef();
-    else if (other.match() == Match::Tag) {
+    if (other.m_hasRareData) {
+        m_data.rareData = other.m_data.rareData;
+        m_data.rareData->ref();
+    } else if (other.match() == Match::Tag) {
         m_data.tagQName = other.m_data.tagQName;
         m_data.tagQName->ref();
     } else if (other.m_data.value) {
@@ -984,7 +985,7 @@ void CSSSelector::visitAllSimpleSelectors(auto& apply) const
     // Effective C++ advices for this cast to deal with generic const/non-const member function.
     apply(*const_cast<CSSSelector*>(this));
 
-    // Visit the selector list member (if any) recursively (such as: :has(<list>), :is(<list>),...)
+    // Visit the selector list member (if any) recursively (for functional pseudo-class such as: :has(<list>), :is(<list>),...)
     if (auto selectorList = this->selectorList()) {
         auto next = selectorList->first();
         while (next) {
@@ -1037,6 +1038,21 @@ bool CSSSelector::hasExplicitNestingParent() const
     visitAllSimpleSelectors(checkForExplicitParent);
 
     return result;
+}
+
+unsigned CSSSelector::countsSimpleSelectors() const
+{
+    auto counter = 0u;
+
+    auto count = [&] (const CSSSelector&) {
+        counter++;
+    };
+
+    visitAllSimpleSelectors(count);
+
+    //ALWAYS_LOG_WITH_STREAM(stream << "selector size is:" << counter);
+    return counter;
+        
 }
 
 } // namespace WebCore

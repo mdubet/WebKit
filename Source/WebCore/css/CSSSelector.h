@@ -67,6 +67,8 @@ struct PossiblyQuotedIdentifier {
         void resolveNestingParentSelectors(const CSSSelectorList& parent);
         void replaceNestingParentByPseudoClassScope();
 
+        unsigned countsSimpleSelectors() const;
+
         // How the attribute value has to match. Default is Exact.
         enum class Match : uint8_t {
             Unknown = 0,

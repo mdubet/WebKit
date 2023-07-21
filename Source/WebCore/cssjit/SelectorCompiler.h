@@ -39,13 +39,15 @@ class Element;
 
 namespace SelectorCompiler {
 
-enum class SelectorContext {
+enum class SelectorContext : bool {
     // Rule Collector needs a resolvingMode and can modify the tree as it matches.
     RuleCollector,
 
     // Query Selector does not modify the tree and never match :visited.
     QuerySelector
 };
+
+static const unsigned maximumSelectorLength = 8192;
 
 void compileSelector(CompiledSelector&, const CSSSelector*, SelectorContext);
 

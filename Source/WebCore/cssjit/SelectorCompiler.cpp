@@ -635,7 +635,8 @@ void compileSelector(CompiledSelector& compiledSelector, const CSSSelector* sele
 {
     ASSERT(compiledSelector.status == SelectorCompilationStatus::NotCompiled);
 
-    if (!JSC::Options::useJIT()) {
+    if (!JSC::Options::useJIT() || selector->countsSimpleSelectors() > maximumSelectorLength) {
+    //if (!JSC::Options::useJIT() || true) {
         compiledSelector.status = SelectorCompilationStatus::CannotCompile;
         return;
     }
