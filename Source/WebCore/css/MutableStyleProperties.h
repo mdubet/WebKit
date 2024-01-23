@@ -62,6 +62,11 @@ public:
     bool addParsedProperties(const ParsedPropertyVector&);
     bool addParsedProperty(const CSSProperty&);
 
+
+    // FIXME: All those setProperty() are a mess : some deals with raw string, some CSSValue, and they don't have the same behavior.
+    // The ones which take a String do the parsing and correctly dispatch values to the appropriate longhands.
+    // The one taking CSSValue can't do that, so they work on longhand but not necesseraly on shorthand (only with CSS wide keyword?)
+
     // These expand shorthand properties into multiple properties.
     bool setProperty(CSSPropertyID, const String& value, CSSParserContext, IsImportant = IsImportant::No, bool* didFailParsing = nullptr);
     bool setProperty(CSSPropertyID, const String& value, IsImportant = IsImportant::No, bool* didFailParsing = nullptr);

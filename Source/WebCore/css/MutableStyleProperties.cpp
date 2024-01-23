@@ -183,6 +183,8 @@ void MutableStyleProperties::setProperty(CSSPropertyID propertyID, Ref<CSSValue>
         setProperty(CSSProperty(propertyID, WTFMove(value), important));
         return;
     }
+    // FIXME: The following code is only valid if we set a CSS wide keyword, we should assert this
+    // ASSERT(value->isCSSWideKeyword())
     auto shorthand = shorthandForProperty(propertyID);
     removeProperties(shorthand.properties());
     for (auto longhand : shorthand)

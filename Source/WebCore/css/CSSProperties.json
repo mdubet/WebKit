@@ -7644,17 +7644,6 @@
                 "url": "https://svgwg.org/svg2-draft/text.html#TextAnchorProperty"
             }
         },
-        "text-decoration": {
-            "codegen-properties": {
-                "longhands": [
-                    "text-decoration-line"
-                ]
-            },
-            "specification": {
-                "category": "css-22",
-                "url": "https://www.w3.org/TR/CSS2/text.html#propdef-text-decoration"
-            }
-        },
         "text-group-align": {
             "animation-type": "discrete",
             "initial": "none",
@@ -10465,20 +10454,21 @@
                 "url": "https://www.w3.org/TR/css-writing-modes-3/#propdef-direction"
             }
         },
-        "-webkit-text-decoration": {
+        "text-decoration": {
             "codegen-properties": {
                 "longhands": [
                     "text-decoration-line",
+                    "text-decoration-thickness",
                     "text-decoration-style",
                     "text-decoration-color"
+                ],
+                "aliases": [
+                    "-webkit-text-decoration"
                 ]
-            },
-            "status": {
-                "status": "experimental"
             },
             "specification": {
                 "category": "css-text-decor",
-                "url": "https://www.w3.org/TR/css-text-decor-3/#text-decoration"
+                "url": "https://drafts.csswg.org/css-text-decor-4/#text-decoration-property"
             }
         },
         "text-decoration-line": {
