@@ -51,12 +51,12 @@ shouldBeNonNull("link.sheet");
 link.sheet.disabled = true;
 shouldBeTrue("link.disabled");
 shouldBeTrue("link.sheet.disabled");
-shouldBeEqualToString("getComputedStyle(testElement).textDecoration", "none");
+shouldBeEqualToString("getComputedStyle(testElement).textDecoration", "rgb(0,0,0)");
 
 link.disabled = false;
 shouldBeFalse("link.disabled");
 shouldBeFalse("link.sheet.disabled");
-shouldBeEqualToString("getComputedStyle(testElement).textDecoration", "line-through");
+shouldBeEqualToString("getComputedStyle(testElement).textDecoration", "line-through rgb(0,0,0)");
 
 link.sheet.disabled = false;
 
