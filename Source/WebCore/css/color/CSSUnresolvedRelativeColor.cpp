@@ -23,49 +23,30 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#pragma once
-
-#include "CSSUnresolvedColorMix.h"
-#include "CSSUnresolvedLightDark.h"
+#include "config.h"
 #include "CSSUnresolvedRelativeColor.h"
-#include <variant>
-#include <wtf/Forward.h>
+
+#include "ColorFromPrimitiveValue.h"
+#include "ColorSerialization.h"
+#include "StyleBuilderState.h"
 
 namespace WebCore {
 
-namespace Style {
-enum class ForVisitedLink : bool;
+void serializationForCSS(StringBuilder&, const CSSUnresolvedRelativeColor&)
+{
 }
 
-class Document;
-class RenderStyle;
+String serializationForCSS(const CSSUnresolvedRelativeColor& unresolved)
+{
+    StringBuilder builder;
+    serializationForCSS(builder, unresolved);
+    return builder.toString();
+}
 
-class CSSUnresolvedColor {
-public:
-    template<typename T> explicit CSSUnresolvedColor(T&& value)
-        : m_value { std::forward<T>(value) }
-    {
-    }
-    CSSUnresolvedColor(CSSUnresolvedColor&&) = default;
-    CSSUnresolvedColor& operator=(CSSUnresolvedColor&&) = default;
-    bool operator==(const CSSUnresolvedColor&) const = default;
-    ~CSSUnresolvedColor();
-
-    bool containsCurrentColor() const;
-
-    void serializationForCSS(StringBuilder&) const;
-    String serializationForCSS() const;
-
-    bool equals(const CSSUnresolvedColor&) const;
-
-    StyleColor createStyleColor(const Document&, RenderStyle&, Style::ForVisitedLink) const;
-
-private:
-    std::variant<
-        CSSUnresolvedColorMix,
-        CSSUnresolvedLightDark,
-        CSSUnresolvedRelativeColor
-    > m_value;
-};
+//StyleColor createStyleColor(const CSSUnresolvedRelativeColor& unresolved, const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink)
+StyleColor createStyleColor(const CSSUnresolvedRelativeColor& , const Document& , RenderStyle& , Style::ForVisitedLink )
+{
+    return { };
+}
 
 } // namespace WebCore

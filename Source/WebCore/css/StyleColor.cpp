@@ -57,6 +57,9 @@ StyleColor::ColorKind StyleColor::copy(const StyleColor::ColorKind& other)
         },
         [] (const UniqueRef<StyleColorMix>& colorMix) -> StyleColor::ColorKind {
             return makeUniqueRef<StyleColorMix>(colorMix.get());
+        },
+        [] (const UniqueRef<StyleRelativeColor>& relativeColor) -> StyleColor::ColorKind {
+            return makeUniqueRef<StyleRelativeColor>(relativeColor.get());
         }
     );
 }
@@ -150,6 +153,10 @@ Color StyleColor::resolveColor(const Color& currentColor) const
         },
         [&] (const UniqueRef<StyleColorMix>& colorMix) -> Color {
             return WebCore::resolveColor(colorMix, currentColor);
+        },
+        [&] (const UniqueRef<StyleRelativeColor>&) -> Color {
+            ASSERT_NOT_REACHED();
+            return { };
         }
     );
 }
@@ -165,6 +172,10 @@ bool StyleColor::containsCurrentColor() const
         },
         [&] (const UniqueRef<StyleColorMix>& colorMix) -> bool {
             return colorMix->mixComponents1.color.containsCurrentColor() || colorMix->mixComponents2.color.containsCurrentColor();
+        },
+        [&] (const UniqueRef<StyleRelativeColor>&) {
+            ASSERT_NOT_REACHED();
+            return true;
         }
     );
 }
@@ -247,22 +258,30 @@ void serializationForCSS(StringBuilder& builder, const StyleCurrentColor&)
 void serializationForCSS(StringBuilder& builder, const StyleColor& color)
 {
     WTF::switchOn(color.m_color,
-        [&] (const Color& absoluteColor) {
-            serializationForCSS(builder, absoluteColor);
-        },
-        [&] (const StyleCurrentColor& currentColor) {
-            serializationForCSS(builder, currentColor);
-        },
-        [&] (const UniqueRef<StyleColorMix>& colorMix) {
-            serializationForCSS(builder, colorMix);
+        [&] (const auto& color) {
+            return serializationForCSS(builder, color);
         }
     );
+}
+
+void serializationForCSS(StringBuilder& builder, const StyleRelativeColor& relativeColor)
+{
+    builder.append("relative-color(from ");
+    serializationForCSS(builder, relativeColor.from);
+    builder.append(")");
 }
 
 String serializationForCSS(const StyleColorMix& colorMix)
 {
     StringBuilder builder;
     serializationForCSS(builder, colorMix);
+    return builder.toString();
+}
+
+String serializationForCSS(const StyleRelativeColor& relativeColor)
+{
+    StringBuilder builder;
+    serializationForCSS(builder, relativeColor);
     return builder.toString();
 }
 
@@ -274,14 +293,8 @@ String serializationForCSS(const StyleCurrentColor&)
 String serializationForCSS(const StyleColor& color)
 {
     return WTF::switchOn(color.m_color,
-        [&] (const Color& absoluteColor) {
-            return serializationForCSS(absoluteColor);
-        },
-        [&] (const StyleCurrentColor& currentColor) {
-            return serializationForCSS(currentColor);
-        },
-        [&] (const UniqueRef<StyleColorMix>& colorMix) {
-            return serializationForCSS(colorMix);
+        [&] (const auto& color) {
+            return serializationForCSS(color);
         }
     );
 }
@@ -307,6 +320,15 @@ TextStream& operator<<(TextStream& ts, const StyleColorMix& colorMix)
     return ts;
 }
 
+TextStream& operator<<(TextStream& ts, const StyleRelativeColor& relativeColor)
+{
+    ts << "RelativeColor[";
+    ts << "from " << relativeColor.from;
+    ts << "]";
+
+    return ts;
+}
+
 WTF::TextStream& operator<<(WTF::TextStream& out, const StyleCurrentColor&)
 {
     out << "currentColor";
@@ -326,6 +348,9 @@ WTF::TextStream& operator<<(WTF::TextStream& out, const StyleColor& color)
         },
         [&] (const UniqueRef<StyleColorMix>& colorMix) {
             out << colorMix.get();
+        },
+        [&] (const UniqueRef<StyleRelativeColor>& relativeColor) {
+            out << relativeColor.get();
         }
     );
 

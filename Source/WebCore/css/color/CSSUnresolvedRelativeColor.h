@@ -25,11 +25,9 @@
 
 #pragma once
 
-#include "CSSUnresolvedColorMix.h"
-#include "CSSUnresolvedLightDark.h"
-#include "CSSUnresolvedRelativeColor.h"
-#include <variant>
-#include <wtf/Forward.h>
+#include "CSSPrimitiveValue.h"
+#include "ColorInterpolationMethod.h"
+#include "StyleColor.h"
 
 namespace WebCore {
 
@@ -40,32 +38,15 @@ enum class ForVisitedLink : bool;
 class Document;
 class RenderStyle;
 
-class CSSUnresolvedColor {
-public:
-    template<typename T> explicit CSSUnresolvedColor(T&& value)
-        : m_value { std::forward<T>(value) }
-    {
-    }
-    CSSUnresolvedColor(CSSUnresolvedColor&&) = default;
-    CSSUnresolvedColor& operator=(CSSUnresolvedColor&&) = default;
-    bool operator==(const CSSUnresolvedColor&) const = default;
-    ~CSSUnresolvedColor();
-
-    bool containsCurrentColor() const;
-
-    void serializationForCSS(StringBuilder&) const;
-    String serializationForCSS() const;
-
-    bool equals(const CSSUnresolvedColor&) const;
-
-    StyleColor createStyleColor(const Document&, RenderStyle&, Style::ForVisitedLink) const;
-
-private:
-    std::variant<
-        CSSUnresolvedColorMix,
-        CSSUnresolvedLightDark,
-        CSSUnresolvedRelativeColor
-    > m_value;
+struct CSSUnresolvedRelativeColor {
+    ColorInterpolationMethod colorInterpolationMethod;
+    Ref<CSSPrimitiveValue> fromColor;
+    friend bool operator==(const CSSUnresolvedRelativeColor&, const CSSUnresolvedRelativeColor&) = default;
 };
+
+void serializationForCSS(StringBuilder&, const CSSUnresolvedRelativeColor&);
+String serializationForCSS(const CSSUnresolvedRelativeColor&);
+
+StyleColor createStyleColor(const CSSUnresolvedRelativeColor&, const Document&, RenderStyle&, Style::ForVisitedLink);
 
 } // namespace WebCore

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 Apple Inc. All rights reserved.
+ * Copyright (C) 2024 Apple Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -41,6 +41,9 @@ bool CSSUnresolvedColor::containsCurrentColor() const
         },
         [&] (const CSSUnresolvedLightDark& unresolved) {
             return StyleColor::containsCurrentColor(unresolved.lightColor) || StyleColor::containsCurrentColor(unresolved.darkColor);
+        },
+        [&] (const CSSUnresolvedRelativeColor& unresolved) {
+            return StyleColor::containsCurrentColor(unresolved.fromColor);
         }
     );
 }
@@ -57,7 +60,7 @@ String CSSUnresolvedColor::serializationForCSS() const
 
 bool CSSUnresolvedColor::equals(const CSSUnresolvedColor& other) const
 {
-    return m_value == other.m_value;
+    return *this == other;
 }
 
 StyleColor CSSUnresolvedColor::createStyleColor(const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink) const

@@ -2037,7 +2037,7 @@ static Color parseNonRelativeRGBParametersRaw(CSSParserTokenRange& args)
     return { };
 }
 
-enum class RGBFunctionMode { RGB, RGBA };
+enum class RGBFunctionMode : bool { RGB, RGBA };
 
 template<RGBFunctionMode Mode> static Color parseRGBParametersRaw(CSSParserTokenRange& range, const CSSParserContext& context)
 {

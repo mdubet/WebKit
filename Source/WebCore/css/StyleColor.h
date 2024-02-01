@@ -48,6 +48,7 @@ enum class StyleColorOptions : uint8_t {
 };
 
 struct StyleColorMix;
+struct StyleRelativeColor;
 struct StyleCurrentColor {
     friend constexpr bool operator==(const StyleCurrentColor&, const StyleCurrentColor&) = default;
 };
@@ -129,7 +130,7 @@ public:
     String debugDescription() const;
 
 private:
-    using ColorKind = std::variant<Color, StyleCurrentColor, UniqueRef<StyleColorMix>>;
+    using ColorKind = std::variant<Color, StyleCurrentColor, UniqueRef<StyleColorMix>, UniqueRef<StyleRelativeColor>>;
 
     StyleColor(ColorKind&& color)
         : m_color { WTFMove(color) }
@@ -159,19 +160,31 @@ struct StyleColorMix {
     Component mixComponents2;
 };
 
+struct StyleRelativeColor {
+    WTF_MAKE_STRUCT_FAST_ALLOCATED;
+
+    friend bool operator==(const StyleRelativeColor&, const StyleRelativeColor&) = default;
+
+    ColorInterpolationMethod colorInterpolationMethod;
+    StyleColor from;
+};
+
 inline bool operator==(const UniqueRef<StyleColorMix>& a, const UniqueRef<StyleColorMix>& b)
 {
     return a.get() == b.get();
 }
 
+WTF::TextStream& operator<<(WTF::TextStream&, const StyleRelativeColor&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleColorMix&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleCurrentColor&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleColor&);
 
+void serializationForCSS(StringBuilder&, const StyleRelativeColor&);
 void serializationForCSS(StringBuilder&, const StyleColorMix&);
 void serializationForCSS(StringBuilder&, const StyleCurrentColor&);
 void serializationForCSS(StringBuilder&, const StyleColor&);
 
+WEBCORE_EXPORT String serializationForCSS(const StyleRelativeColor&);
 WEBCORE_EXPORT String serializationForCSS(const StyleColorMix&);
 WEBCORE_EXPORT String serializationForCSS(const StyleCurrentColor&);
 WEBCORE_EXPORT String serializationForCSS(const StyleColor&);
