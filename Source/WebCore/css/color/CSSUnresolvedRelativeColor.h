@@ -26,8 +26,10 @@
 #pragma once
 
 #include "CSSPrimitiveValue.h"
-#include "ColorInterpolationMethod.h"
 #include "StyleColor.h"
+#include "CSSParserTokenRange.h"
+#include "css/CSSValue.h"
+#include "wtf/UniqueRef.h"
 
 namespace WebCore {
 
@@ -39,14 +41,12 @@ class Document;
 class RenderStyle;
 
 struct CSSUnresolvedRelativeColor {
-    ColorInterpolationMethod colorInterpolationMethod;
-    Ref<CSSPrimitiveValue> fromColor;
-    friend bool operator==(const CSSUnresolvedRelativeColor&, const CSSUnresolvedRelativeColor&) = default;
+    UniqueRef<CSSUnresolvedColor> fromColor;
+    CSSParserTokenRange channels;
 };
 
 void serializationForCSS(StringBuilder&, const CSSUnresolvedRelativeColor&);
 String serializationForCSS(const CSSUnresolvedRelativeColor&);
-
 StyleColor createStyleColor(const CSSUnresolvedRelativeColor&, const Document&, RenderStyle&, Style::ForVisitedLink);
 
 } // namespace WebCore
