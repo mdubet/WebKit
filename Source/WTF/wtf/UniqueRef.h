@@ -69,6 +69,8 @@ public:
         ASSERT(m_ref);
     }
 
+    // bool operator==(const UniqueRef<T>& other) const { return ((!ptr() && !other.ptr()) || get() == other.get()); };
+
     T* ptr() RETURNS_NONNULL { ASSERT(m_ref); return m_ref.get(); }
     T* ptr() const RETURNS_NONNULL { ASSERT(m_ref); return m_ref.get(); }
 
@@ -80,7 +82,7 @@ public:
 
     T* operator->() { ASSERT(m_ref); return m_ref.get(); }
     const T* operator->() const { ASSERT(m_ref); return m_ref.get(); }
-    
+
     operator T&() { ASSERT(m_ref); return *m_ref; }
     operator const T&() const { ASSERT(m_ref); return *m_ref; }
 

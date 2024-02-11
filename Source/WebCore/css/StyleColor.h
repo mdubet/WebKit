@@ -35,6 +35,7 @@
 #include "CSSValueKeywords.h"
 #include "Color.h"
 #include "ColorInterpolationMethod.h"
+#include "CSSParserTokenRange.h"
 #include <wtf/OptionSet.h>
 #include <wtf/UniqueRef.h>
 
@@ -74,6 +75,11 @@ public:
 
     StyleColor(StyleColorMix&& colorMix)
         : m_color { resolveAbsoluteComponents(WTFMove(colorMix)) }
+    {
+    }
+
+    StyleColor(StyleRelativeColor&& relativeColor)
+        : m_color { makeUniqueRef<StyleRelativeColor>(WTFMove(relativeColor)) }
     {
     }
 
@@ -165,8 +171,8 @@ struct StyleRelativeColor {
 
     friend bool operator==(const StyleRelativeColor&, const StyleRelativeColor&) = default;
 
-    ColorInterpolationMethod colorInterpolationMethod;
     StyleColor from;
+    CSSParserTokenRange channels;
 };
 
 inline bool operator==(const UniqueRef<StyleColorMix>& a, const UniqueRef<StyleColorMix>& b)

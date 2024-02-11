@@ -29,6 +29,7 @@
 #include "ColorFromPrimitiveValue.h"
 #include "ColorSerialization.h"
 #include "StyleBuilderState.h"
+#include "StyleColor.h"
 
 namespace WebCore {
 
@@ -43,10 +44,10 @@ String serializationForCSS(const CSSUnresolvedRelativeColor& unresolved)
     return builder.toString();
 }
 
-//StyleColor createStyleColor(const CSSUnresolvedRelativeColor& unresolved, const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink)
-StyleColor createStyleColor(const CSSUnresolvedRelativeColor& , const Document& , RenderStyle& , Style::ForVisitedLink )
+StyleColor createStyleColor(const CSSUnresolvedRelativeColor& unresolved, const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink)
 {
-    return { };
+    auto fromColor = colorFromPrimitiveValue(document, style, unresolved.fromColor, forVisitedLink);
+    return StyleColor { StyleRelativeColor { fromColor, unresolved.channels } };
 }
 
 } // namespace WebCore

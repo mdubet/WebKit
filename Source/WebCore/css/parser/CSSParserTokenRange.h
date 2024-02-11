@@ -42,6 +42,7 @@ class StyleSheetContents;
 class CSSParserTokenRange {
 public:
     CSSParserTokenRange() = default;
+    bool operator==(const CSSParserTokenRange&) const = default;
 
     template<size_t inlineBuffer>
     CSSParserTokenRange(const Vector<CSSParserToken, inlineBuffer>& vector)

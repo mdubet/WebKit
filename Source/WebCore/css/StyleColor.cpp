@@ -39,6 +39,8 @@
 #include "ColorSerialization.h"
 #include "HashTools.h"
 #include "RenderTheme.h"
+#include "css/parser/CSSParserToken.h"
+#include "css/parser/CSSPropertyParserHelpers.h"
 #include <wtf/text/TextStream.h>
 
 namespace WebCore {
@@ -144,40 +146,45 @@ String StyleColor::debugDescription() const
 
 Color StyleColor::resolveColor(const Color& currentColor) const
 {
-    return WTF::switchOn(m_color,
-        [&] (const Color& absoluteColor) -> Color {
+    return WTF::switchOn(
+        m_color,
+        [&](const Color& absoluteColor) -> Color {
             return absoluteColor;
         },
-        [&] (const StyleCurrentColor&) -> Color {
+        [&](const StyleCurrentColor&) -> Color {
             return currentColor;
         },
-        [&] (const UniqueRef<StyleColorMix>& colorMix) -> Color {
+        [&](const UniqueRef<StyleColorMix>& colorMix) -> Color {
             return WebCore::resolveColor(colorMix, currentColor);
         },
-        [&] (const UniqueRef<StyleRelativeColor>&) -> Color {
-            ASSERT_NOT_REACHED();
-            return { };
-        }
-    );
+        [&](const UniqueRef<StyleRelativeColor>& relativeColor) -> Color {
+            auto fromColor = relativeColor->from.resolveColor(currentColor);
+            ASSERT(fromColor.isValid());
+            if (!fromColor.isValid())
+                return {};
+            auto range = relativeColor->channels;
+            return CSSPropertyParserHelpers::computeRelativeRGBParametersRaw(range, fromColor);
+            // ASSERT_NOT_REACHED();
+            // return {};
+        });
 }
 
 bool StyleColor::containsCurrentColor() const
 {
-    return WTF::switchOn(m_color,
-        [&] (const Color&) -> bool {
+    return WTF::switchOn(
+        m_color,
+        [&](const Color&) -> bool {
             return false;
         },
-        [&] (const StyleCurrentColor&) -> bool {
+        [&](const StyleCurrentColor&) -> bool {
             return true;
         },
-        [&] (const UniqueRef<StyleColorMix>& colorMix) -> bool {
+        [&](const UniqueRef<StyleColorMix>& colorMix) -> bool {
             return colorMix->mixComponents1.color.containsCurrentColor() || colorMix->mixComponents2.color.containsCurrentColor();
         },
-        [&] (const UniqueRef<StyleRelativeColor>&) {
-            ASSERT_NOT_REACHED();
-            return true;
-        }
-    );
+        [&](const UniqueRef<StyleRelativeColor>& relativeColor) {
+            return relativeColor->from.containsCurrentColor();
+        });
 }
 
 bool StyleColor::isCurrentColor() const

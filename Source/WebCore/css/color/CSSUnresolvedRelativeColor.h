@@ -25,10 +25,11 @@
 
 #pragma once
 
+#include "CSSParserTokenRange.h"
 #include "CSSPrimitiveValue.h"
 #include "StyleColor.h"
-#include "CSSParserTokenRange.h"
 #include "css/CSSValue.h"
+#include "platform/graphics/ColorInterpolationMethod.h"
 #include "wtf/UniqueRef.h"
 
 namespace WebCore {
@@ -41,7 +42,12 @@ class Document;
 class RenderStyle;
 
 struct CSSUnresolvedRelativeColor {
-    UniqueRef<CSSUnresolvedColor> fromColor;
+    ColorInterpolationColorSpace colorSpace;
+    bool operator==(const CSSUnresolvedRelativeColor&) const = default;
+    // UniqueRef<CSSUnresolvedColor> fromColor;
+    Ref<CSSPrimitiveValue> fromColor;
+    //  FIXME: CSSParserTokenRange?
+    // String channels;
     CSSParserTokenRange channels;
 };
 

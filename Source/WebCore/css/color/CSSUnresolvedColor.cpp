@@ -35,17 +35,17 @@ CSSUnresolvedColor::~CSSUnresolvedColor() = default;
 
 bool CSSUnresolvedColor::containsCurrentColor() const
 {
-    return WTF::switchOn(m_value,
-        [&] (const CSSUnresolvedColorMix& unresolved) {
+    return WTF::switchOn(
+        m_value,
+        [&](const CSSUnresolvedColorMix& unresolved) {
             return StyleColor::containsCurrentColor(unresolved.mixComponents1.color) || StyleColor::containsCurrentColor(unresolved.mixComponents2.color);
         },
-        [&] (const CSSUnresolvedLightDark& unresolved) {
+        [&](const CSSUnresolvedLightDark& unresolved) {
             return StyleColor::containsCurrentColor(unresolved.lightColor) || StyleColor::containsCurrentColor(unresolved.darkColor);
         },
-        [&] (const CSSUnresolvedRelativeColor& unresolved) {
+        [&](const CSSUnresolvedRelativeColor& unresolved) {
             return StyleColor::containsCurrentColor(unresolved.fromColor);
-        }
-    );
+        });
 }
 
 void CSSUnresolvedColor::serializationForCSS(StringBuilder& builder) const

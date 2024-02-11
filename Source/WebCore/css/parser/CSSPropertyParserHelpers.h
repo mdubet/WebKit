@@ -139,6 +139,8 @@ RefPtr<CSSPrimitiveValue> consumeURL(CSSParserTokenRange&);
 Color consumeColorWorkerSafe(CSSParserTokenRange&, const CSSParserContext&);
 RefPtr<CSSPrimitiveValue> consumeColor(CSSParserTokenRange&, const CSSParserContext&, bool acceptQuirkyColors = false, OptionSet<StyleColor::CSSColorType> = { StyleColor::CSSColorType::Absolute, StyleColor::CSSColorType::Current, StyleColor::CSSColorType::System });
 
+Color computeRelativeRGBParametersRaw(CSSParserTokenRange& args, const Color& originColor);
+
 enum class PositionSyntax {
     Position, // <position>
     BackgroundPosition // <bg-position>

@@ -100,6 +100,8 @@
 #include "TimingFunction.h"
 #include "WebKitFontFamilyNames.h"
 #include "css/color/CSSUnresolvedRelativeColor.h"
+#include "platform/graphics/ColorInterpolationMethod.h"
+#include <variant>
 #include <wtf/SortedArrayMap.h>
 #include <wtf/text/StringConcatenateNumbers.h>
 #include <wtf/text/TextStream.h>
@@ -1865,27 +1867,20 @@ static std::optional<double> consumeRGBOrHSLOptionalAlpha(CSSParserTokenRange& a
     return std::nullopt;
 }
 
-static ColorOrUnresolvedColor parseRelativeRGBParametersRaw(CSSParserTokenRange& args, const CSSParserContext& context)
+using Channels = std::array<NumberOrPercentOrNoneRaw,3>;
+
+static std::optional<Channels> parseRelativeRGBChannelsRaw(CSSParserTokenRange& args, const Color& originColor)
 {
-    ASSERT(args.peek().id() == CSSValueFrom);
-    consumeIdentRaw(args);
-
-    auto originColorOrUnresolved = consumeColor(args, context);
-    if (!originColorOrUnresolved)
-        return { };
-
     auto redValue = 100.0;
     auto greenValue = 100.0;
     auto blueValue = 100.0;
     auto alphaValue = 100.0;
 
-    if (originColorOrUnresolved->isColor()) {
-        auto originColorAsSRGB = originColorOrUnresolved->color().toColorTypeLossy<SRGBA<float>>().resolved();
-        redValue *= originColorAsSRGB.red;
-        greenValue *= originColorAsSRGB.green;
-        blueValue *= originColorAsSRGB.blue;
-        alphaValue *= originColorAsSRGB.alpha;
-    }
+    auto originColorAsSRGB = originColor.toColorTypeLossy<SRGBA<float>>().resolved();
+    redValue *= originColorAsSRGB.red;
+    greenValue *= originColorAsSRGB.green;
+    blueValue *= originColorAsSRGB.blue;
+    alphaValue *= originColorAsSRGB.alpha;
 
     CSSCalcSymbolTable symbolTable {
         { CSSValueR, CSSUnitType::CSS_PERCENTAGE, redValue },
@@ -1893,9 +1888,6 @@ static ColorOrUnresolvedColor parseRelativeRGBParametersRaw(CSSParserTokenRange&
         { CSSValueB, CSSUnitType::CSS_PERCENTAGE, blueValue },
         { CSSValueAlpha, CSSUnitType::CSS_PERCENTAGE, alphaValue }
     };
-
-    // We do a copy, we might need to reuse those tokens to resolve a dynamic color
-    auto channelsRange = args;
 
     auto red = consumeNumberOrPercentOrNoneRawAllowingSymbolTableIdent(args, symbolTable);
     if (!red)
@@ -1916,14 +1908,35 @@ static ColorOrUnresolvedColor parseRelativeRGBParametersRaw(CSSParserTokenRange&
     if (!args.atEnd())
         return { };
 
-    if (originColorOrUnresolved->isUnresolvedColor()) {
+    return std::array { *red, *green, *blue };
+}
+
+static ColorOrUnresolvedColor parseRelativeRGBParametersRaw(CSSParserTokenRange& args, const CSSParserContext& context)
+{
+    ASSERT(args.peek().id() == CSSValueFrom);
+    consumeIdentRaw(args);
+
+    auto originColor = consumeColor(args, context);
+    if (!originColor)
+        return { };
+
+    auto argsCopy = args;
+    auto channels = parseRelativeRGBChannelsRaw(args, *originColor);
+    if (!channels)
+        return { };
+
+    if (!originColor->isColor()) {
         // We know the syntax is correct, but the resulting color is not.
         // We can't resolve the color yet, pack the tokens to resolve at use-time.
-        return CSSUnresolvedColor { CSSUnresolvedRelativeColor {
-            makeUniqueRef<CSSUnresolvedColor>(originColorOrUnresolved->unresolvedColor()),
-            channelsRange
-        }};
+        return CSSUnresolvedColor { CSSUnresolvedRelativeColor { ColorInterpolationColorSpace::SRGB, *originColor, argsCopy }};
     }
+
+    return normalizecomputeRelativeRGBParametersRaw(channels, &originColor);
+}
+
+Color normalizeRelativeRGBParametersRaw(Channels channels)
+{
+    auto [red,green,blue,alpha] = channels;
 
     if (std::holds_alternative<NoneRaw>(*red) || std::holds_alternative<NoneRaw>(*green) || std::holds_alternative<NoneRaw>(*blue) || std::isnan(*alpha)) {
         auto normalizeComponentAllowingNone = [] (auto component) {
@@ -3218,13 +3231,19 @@ static Color parseColorFunctionRaw(CSSParserTokenRange& range, const CSSParserCo
 {
     CSSParserTokenRange colorRange = range;
     CSSValueID functionId = range.peek().functionId();
+    auto checkColor = [](auto&& colorOrUnresolved) -> Color {
+        if (std::holds_alternative<Color>(colorOrUnresolved))
+            return std::get<Color>(colorOrUnresolved);
+        return {};
+    };
+
     Color color;
     switch (functionId) {
     case CSSValueRgb:
-        color = parseRGBParametersRaw<RGBFunctionMode::RGB>(colorRange, context);
+        color = checkColor(parseRGBParametersRaw<RGBFunctionMode::RGB>(colorRange, context));
         break;
     case CSSValueRgba:
-        color = parseRGBParametersRaw<RGBFunctionMode::RGBA>(colorRange, context);
+        color = checkColor(parseRGBParametersRaw<RGBFunctionMode::RGBA>(colorRange, context));
         break;
     case CSSValueHsl:
         color = parseHSLParametersRaw<HSLFunctionMode::HSL>(colorRange, context);
@@ -3280,10 +3299,10 @@ static std::optional<ColorOrUnresolvedColor> parseColorFunction(CSSParserTokenRa
     std::optional<ColorOrUnresolvedColor> color;
     switch (functionId) {
     case CSSValueRgb:
-        color = checkColor(parseRGBParametersRaw<RGBFunctionMode::RGB>(colorRange, context));
+        color = parseRGBParametersRaw<RGBFunctionMode::RGB>(colorRange, context);
         break;
     case CSSValueRgba:
-        color = checkColor(parseRGBParametersRaw<RGBFunctionMode::RGBA>(colorRange, context));
+        color = parseRGBParametersRaw<RGBFunctionMode::RGBA>(colorRange, context);
         break;
     case CSSValueHsl:
         color = checkColor(parseHSLParametersRaw<HSLFunctionMode::HSL>(colorRange, context));
