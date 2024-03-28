@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+
+a:visited {
+    background-color: red;
+}
+
+a {
+    display: block;
+    width: 100px;
+    height: 100px;
+    background-color: blue;
+}
+
+a:link {
+    background-color: green;
+}
+
+</style>
+<p>You should see a green square below.</p>
+<a id="link" href="">dd</a>
+<script>
+link.offsetTop; // force recalc
+console.log("changing href now");
+link.href = "ddffnot-visited.html";
+link.style.color = "yellow";
+//link.style.color = "inherit";
+</script>
