@@ -401,6 +401,7 @@ bool HTMLElement::matchesReadWritePseudoClass() const
 
 void HTMLElement::attributeChanged(const QualifiedName& name, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason attributeModificationReason)
 {
+    WTF_ALWAYS_LOG("attribute changed");
     StyledElement::attributeChanged(name, oldValue, newValue, attributeModificationReason);
 
     switch (name.nodeName()) {

@@ -1211,14 +1211,14 @@ static bool rareDataChangeRequiresRepaint(const StyleRareNonInheritedData& first
     return false;
 }
 
-static bool rareInheritedDataChangeRequiresRepaint(const StyleRareInheritedData& first, const StyleRareInheritedData& second)
+static bool rareInheritedDataChangeRequiresRepaint(const StyleRareInheritedData& first, const StyleRareInheritedData& second, bool currentColorDiffers)
 {
     return first.effectiveInert != second.effectiveInert
         || first.userModify != second.userModify
         || first.userSelect != second.userSelect
         || first.appleColorFilter != second.appleColorFilter
         || first.imageRendering != second.imageRendering
-        || first.accentColor != second.accentColor
+        || colorChangeRequiresRepaint(first.accentColor, second.accentColor, currentColorDiffers)
 #if ENABLE(DARK_MODE_CSS)
         || first.colorScheme != second.colorScheme
 #endif
@@ -1316,16 +1316,18 @@ bool RenderStyle::changeRequiresRepaint(const RenderStyle& other, OptionSet<Styl
     }
 
     if (currentColorDiffers || m_nonInheritedData.ptr() != other.m_nonInheritedData.ptr()) {
-        if (m_nonInheritedData->miscData.ptr() != other.m_nonInheritedData->miscData.ptr() && miscDataChangeRequiresRepaint(*m_nonInheritedData->miscData, *other.m_nonInheritedData->miscData, changedContextSensitiveProperties, currentColorDiffers))
-            return true;
+        if (currentColorDiffers || m_nonInheritedData->miscData.ptr() != other.m_nonInheritedData->miscData.ptr()) {
+             if (miscDataChangeRequiresRepaint(*m_nonInheritedData->miscData, *other.m_nonInheritedData->miscData, changedContextSensitiveProperties, currentColorDiffers))
+                return true;
 
-        if (m_nonInheritedData->rareData.ptr() != other.m_nonInheritedData->rareData.ptr()
-            && rareDataChangeRequiresRepaint(*m_nonInheritedData->rareData, *other.m_nonInheritedData->rareData, changedContextSensitiveProperties))
-            return true;
+            if (m_nonInheritedData->rareData.ptr() != other.m_nonInheritedData->rareData.ptr()
+                && rareDataChangeRequiresRepaint(*m_nonInheritedData->rareData, *other.m_nonInheritedData->rareData, changedContextSensitiveProperties))
+                return true;
+        }
     }
 
     if (m_rareInheritedData.ptr() != other.m_rareInheritedData.ptr()
-        && rareInheritedDataChangeRequiresRepaint(*m_rareInheritedData, *other.m_rareInheritedData))
+        && rareInheritedDataChangeRequiresRepaint(*m_rareInheritedData, *other.m_rareInheritedData, currentColorDiffers))
         return true;
 
 #if ENABLE(CSS_PAINTING_API)
@@ -1443,6 +1445,8 @@ bool RenderStyle::outOfFlowPositionStyleDidChange(const RenderStyle* other) cons
 
 StyleDifference RenderStyle::diff(const RenderStyle& other, OptionSet<StyleDifferenceContextSensitiveProperty>& changedContextSensitiveProperties) const
 {
+    WTF_ALWAYS_LOG("diff");
+
     changedContextSensitiveProperties = OptionSet<StyleDifferenceContextSensitiveProperty>();
 
     if (changeRequiresLayout(other, changedContextSensitiveProperties))

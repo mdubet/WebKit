@@ -49,6 +49,8 @@
 #include "StylePropertyMap.h"
 #include "StylePropertyShorthand.h"
 #include "StyleResolver.h"
+#include "wtf/Assertions.h"
+#include "wtf/LoggerHelper.h"
 #include <wtf/HashFunctions.h>
 #include <wtf/IsoMallocInlines.h>
 
@@ -106,6 +108,10 @@ void StyledElement::attributeChanged(const QualifiedName& name, const AtomString
             styleAttributeChanged(newValue, reason);
         else if (hasPresentationalHintsForAttribute(name)) {
             elementData()->setPresentationalHintStyleIsDirty(true);
+            invalidateStyleInternal();
+        } else if (name == hrefAttr) {
+            WTF_ALWAYS_LOG("href changed, invalidate style");
+            // Changing href might change the visited/unvisited pseudoclass
             invalidateStyleInternal();
         }
     }
