@@ -112,7 +112,8 @@ void StyledElement::attributeChanged(const QualifiedName& name, const AtomString
         } else if (name == hrefAttr) {
             WTF_ALWAYS_LOG("href changed, invalidate style");
             // Changing href might change the visited/unvisited pseudoclass
-            invalidateStyleInternal();
+            invalidateStyle();
+            invalidateRenderer();
         }
     }
 }

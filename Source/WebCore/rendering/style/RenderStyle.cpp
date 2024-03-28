@@ -1274,18 +1274,27 @@ inline static bool changedCustomPaintWatchedProperty(const RenderStyle& a, const
 
 static bool currentColorWithVisitedDiffers(const RenderStyle& a, const RenderStyle& b)
 {
-
     auto currentColorForRenderStyle = [](const auto& style) {
         if (style.insideLink() == InsideLink::InsideVisited)
             return style.visitedLinkColor();
-        return style.color();            
+        return style.color();
     };
 
     return currentColorForRenderStyle(a) != currentColorForRenderStyle(b);
 }
 
+// When the rendered element changed "visited" status, the diff doesn't work properly
+// (for each property, we should compare the unvisited before state to the visited new state to be correct)
+static bool visitedChanged(const RenderStyle& a, const RenderStyle& b)
+{
+    return a.insideLink() != b.insideLink();
+}
+
 bool RenderStyle::changeRequiresRepaint(const RenderStyle& other, OptionSet<StyleDifferenceContextSensitiveProperty>& changedContextSensitiveProperties) const
 {
+    if (visitedChanged(*this,other))
+        return true;
+
     bool currentColorDiffers = currentColorWithVisitedDiffers(*this, other);
 
     if (currentColorDiffers || m_svgStyle.ptr() != other.m_svgStyle.ptr()) {
