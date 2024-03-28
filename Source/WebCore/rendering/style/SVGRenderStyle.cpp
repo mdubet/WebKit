@@ -135,19 +135,6 @@ void SVGRenderStyle::copyNonInheritedFrom(const SVGRenderStyle& other)
     m_layoutData = other.m_layoutData;
 }
 
-static bool colorChangeRequiresRepaint(const StyleColor& a, const StyleColor& b, bool currentColorDiffers)
-{
-    if (a != b)
-        return true;
-
-    if (a.containsCurrentColor()) {
-        ASSERT(b.containsCurrentColor());
-        return currentColorDiffers;
-    }
-
-    return false;
-}
-
 bool SVGRenderStyle::changeRequiresLayout(const SVGRenderStyle& other) const
 {
     // If kerning changes, we need a relayout, to force SVGCharacterData to be recalculated in the SVGRootInlineBox.

@@ -25,6 +25,7 @@
 #include "BorderData.h"
 #include "RenderStyleConstants.h"
 #include "RenderStyleInlines.h"
+#include "css/StyleColor.h"
 
 namespace WebCore {
 
@@ -58,11 +59,11 @@ bool StyleBackgroundData::isEquivalentForPainting(const StyleBackgroundData& oth
 {
     if (background != other.background || color != other.color)
         return false;
-    if (currentColorDiffers && color.containsCurrentColor())
+    if (colorChangeRequiresRepaint(color, other.color, currentColorDiffers))
         return false;
     if (!outline.isVisible() && !other.outline.isVisible())
         return true;
-    if (currentColorDiffers && outline.color().containsCurrentColor())
+    if (colorChangeRequiresRepaint(outline.color(), other.outline.color(),currentColorDiffers))
         return false;
     return outline == other.outline;
 }

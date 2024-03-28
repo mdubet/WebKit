@@ -27,6 +27,7 @@
 #include "StyleVisitedLinkColorData.h"
 
 #include "RenderStyleInlines.h"
+#include "css/StyleColor.h"
 
 namespace WebCore {
 
@@ -71,6 +72,17 @@ bool StyleVisitedLinkColorData::operator==(const StyleVisitedLinkColorData& o) c
         && borderBottom == o.borderBottom
         && textDecoration == o.textDecoration
         && outline == o.outline;
+}
+
+bool StyleVisitedLinkColorData::changeRequiresRepaint(const StyleVisitedLinkColorData& a, const StyleVisitedLinkColorData& b, bool currentColorDiffers)
+{
+    return colorChangeRequiresRepaint(a.background, b.background, currentColorDiffers)
+        || colorChangeRequiresRepaint(a.borderLeft, b.borderLeft, currentColorDiffers)        
+        || colorChangeRequiresRepaint(a.borderRight, b.borderRight, currentColorDiffers)        
+        || colorChangeRequiresRepaint(a.borderTop, b.borderTop, currentColorDiffers)        
+        || colorChangeRequiresRepaint(a.borderBottom, b.borderBottom, currentColorDiffers)        
+        || colorChangeRequiresRepaint(a.textDecoration, b.textDecoration, currentColorDiffers)        
+        || colorChangeRequiresRepaint(a.outline, b.outline, currentColorDiffers);
 }
 
 } // namespace WebCore

@@ -166,6 +166,19 @@ inline bool operator==(const UniqueRef<StyleColorMix>& a, const UniqueRef<StyleC
     return a.get() == b.get();
 }
 
+inline bool colorChangeRequiresRepaint(const StyleColor& a, const StyleColor& b, bool currentColorDiffers)
+{
+    if (a != b)
+        return true;
+
+    if (a.containsCurrentColor()) {
+        ASSERT(b.containsCurrentColor());
+        return currentColorDiffers;
+    }
+
+    return false;
+}
+
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleColorMix&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleCurrentColor&);
 WTF::TextStream& operator<<(WTF::TextStream&, const StyleColor&);

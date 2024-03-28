@@ -38,6 +38,7 @@ public:
     ~StyleVisitedLinkColorData();
 
     bool operator==(const StyleVisitedLinkColorData&) const;
+    static bool changeRequiresRepaint(const StyleVisitedLinkColorData&, const StyleVisitedLinkColorData&, bool currentColorDiffers);
 
     StyleColor background;
     StyleColor borderLeft;

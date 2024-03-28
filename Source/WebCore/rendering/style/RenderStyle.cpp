@@ -58,6 +58,8 @@
 #include "StyleTextBoxEdge.h"
 #include "StyleTreeResolver.h"
 #include "TransformOperationData.h"
+#include "css/StyleColor.h"
+#include "wtf/Assertions.h"
 #include <algorithm>
 #include <wtf/MathExtras.h>
 #include <wtf/PointerComparison.h>
@@ -1182,11 +1184,14 @@ static bool requiresPainting(const RenderStyle& style)
     return true;
 }
 
-static bool miscDataChangeRequiresRepaint(const StyleMiscNonInheritedData& first, const StyleMiscNonInheritedData& second, OptionSet<StyleDifferenceContextSensitiveProperty>&)
+static bool miscDataChangeRequiresRepaint(const StyleMiscNonInheritedData& first, const StyleMiscNonInheritedData& second, const OptionSet<StyleDifferenceContextSensitiveProperty>&, bool currentColorDiffers)
 {
     if (first.userDrag != second.userDrag
         || first.objectFit != second.objectFit
         || first.objectPosition != second.objectPosition)
+        return true;
+
+    if (StyleVisitedLinkColorData::changeRequiresRepaint(first.visitedLinkColor, second.visitedLinkColor, currentColorDiffers))
         return true;
 
     return false;
@@ -1267,9 +1272,21 @@ inline static bool changedCustomPaintWatchedProperty(const RenderStyle& a, const
 }
 #endif
 
+static bool currentColorWithVisitedDiffers(const RenderStyle& a, const RenderStyle& b)
+{
+
+    auto currentColorForRenderStyle = [](const auto& style) {
+        if (style.insideLink() == InsideLink::InsideVisited)
+            return style.visitedLinkColor();
+        return style.color();            
+    };
+
+    return currentColorForRenderStyle(a) != currentColorForRenderStyle(b);
+}
+
 bool RenderStyle::changeRequiresRepaint(const RenderStyle& other, OptionSet<StyleDifferenceContextSensitiveProperty>& changedContextSensitiveProperties) const
 {
-    bool currentColorDiffers = m_inheritedData->color != other.m_inheritedData->color;
+    bool currentColorDiffers = currentColorWithVisitedDiffers(*this, other);
 
     if (currentColorDiffers || m_svgStyle.ptr() != other.m_svgStyle.ptr()) {
         if (m_svgStyle->changeRequiresRepaint(other.m_svgStyle, currentColorDiffers))
@@ -1298,9 +1315,8 @@ bool RenderStyle::changeRequiresRepaint(const RenderStyle& other, OptionSet<Styl
         }
     }
 
-    if (m_nonInheritedData.ptr() != other.m_nonInheritedData.ptr()) {
-        if (m_nonInheritedData->miscData.ptr() != other.m_nonInheritedData->miscData.ptr()
-            && miscDataChangeRequiresRepaint(*m_nonInheritedData->miscData, *other.m_nonInheritedData->miscData, changedContextSensitiveProperties))
+    if (currentColorDiffers || m_nonInheritedData.ptr() != other.m_nonInheritedData.ptr()) {
+        if (m_nonInheritedData->miscData.ptr() != other.m_nonInheritedData->miscData.ptr() && miscDataChangeRequiresRepaint(*m_nonInheritedData->miscData, *other.m_nonInheritedData->miscData, changedContextSensitiveProperties, currentColorDiffers))
             return true;
 
         if (m_nonInheritedData->rareData.ptr() != other.m_nonInheritedData->rareData.ptr()
@@ -1322,29 +1338,27 @@ bool RenderStyle::changeRequiresRepaint(const RenderStyle& other, OptionSet<Styl
 
 bool RenderStyle::changeRequiresRepaintIfText(const RenderStyle& other, OptionSet<StyleDifferenceContextSensitiveProperty>&) const
 {
-    // FIXME: Does this code need to consider currentColorDiffers? webkit.org/b/266833
-    if (m_inheritedData->color != other.m_inheritedData->color)
-        return true;
+    bool currentColorDiffers = currentColorWithVisitedDiffers(*this, other);
 
     if (m_inheritedFlags.textDecorationLines != other.m_inheritedFlags.textDecorationLines
         || m_nonInheritedFlags.textDecorationLine != other.m_nonInheritedFlags.textDecorationLine)
         return true;
 
-    if (m_nonInheritedData->rareData.ptr() != other.m_nonInheritedData->rareData.ptr()) {
+    if (currentColorDiffers || m_nonInheritedData->rareData.ptr() != other.m_nonInheritedData->rareData.ptr()) {
         if (m_nonInheritedData->rareData->textDecorationStyle != other.m_nonInheritedData->rareData->textDecorationStyle
-            || m_nonInheritedData->rareData->textDecorationColor != other.m_nonInheritedData->rareData->textDecorationColor
+            || colorChangeRequiresRepaint(m_nonInheritedData->rareData->textDecorationColor, other.m_nonInheritedData->rareData->textDecorationColor, currentColorDiffers)
             || m_nonInheritedData->rareData->textDecorationThickness != other.m_nonInheritedData->rareData->textDecorationThickness)
             return true;
     }
 
-    if (m_rareInheritedData.ptr() != other.m_rareInheritedData.ptr()) {
+    if (currentColorDiffers || m_rareInheritedData.ptr() != other.m_rareInheritedData.ptr()) {
         if (m_rareInheritedData->textDecorationSkipInk != other.m_rareInheritedData->textDecorationSkipInk
-            || m_rareInheritedData->textFillColor != other.m_rareInheritedData->textFillColor
-            || m_rareInheritedData->textStrokeColor != other.m_rareInheritedData->textStrokeColor
-            || m_rareInheritedData->textEmphasisColor != other.m_rareInheritedData->textEmphasisColor
+            || colorChangeRequiresRepaint(m_rareInheritedData->textFillColor, other.m_rareInheritedData->textFillColor, currentColorDiffers)
+            || colorChangeRequiresRepaint(m_rareInheritedData->textStrokeColor, other.m_rareInheritedData->textStrokeColor, currentColorDiffers)
+            || colorChangeRequiresRepaint(m_rareInheritedData->textEmphasisColor, other.m_rareInheritedData->textEmphasisColor, currentColorDiffers)
             || m_rareInheritedData->textEmphasisFill != other.m_rareInheritedData->textEmphasisFill
-            || m_rareInheritedData->strokeColor != other.m_rareInheritedData->strokeColor
-            || m_rareInheritedData->caretColor != other.m_rareInheritedData->caretColor)
+            || colorChangeRequiresRepaint(m_rareInheritedData->strokeColor, other.m_rareInheritedData->strokeColor, currentColorDiffers)
+            || colorChangeRequiresRepaint(m_rareInheritedData->caretColor, other.m_rareInheritedData->caretColor, currentColorDiffers))
             return true;
     }
 
