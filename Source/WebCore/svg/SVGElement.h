@@ -172,6 +172,8 @@ protected:
     SVGElement(const QualifiedName&, Document&, UniqueRef<SVGPropertyRegistry>&&, OptionSet<TypeFlag> = { });
     virtual ~SVGElement();
 
+    virtual SVGAnimatedProperty* propertyForAttribute(const QualifiedName&) { return nullptr; };
+
     bool rendererIsNeeded(const RenderStyle&) override;
 
     void finishParsingChildren() override;
