@@ -37,6 +37,9 @@ private:
     RenderPtr<RenderElement> createElementRenderer(RenderStyle&&, const RenderTreePosition&) final;
 
     using PropertyRegistry = SVGPropertyOwnerRegistry<SVGGElement, SVGGraphicsElement>;
+    friend PropertyRegistry;
+
+    //SVGAnimatedProperty* propertyForAttribute(const QualifiedName&) override;
 
     bool isValid() const final { return SVGTests::isValid(); }
     bool rendererIsNeeded(const RenderStyle&) final;

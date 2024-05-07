@@ -40,6 +40,7 @@ private:
     SVGAnimateTransformElement(const QualifiedName&, Document&);
     
     bool hasValidAttributeType() const final;
+    SVGAnimatedProperty* propertyForAttribute(const QualifiedName&) override;
     void attributeChanged(const QualifiedName&, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason) final;
     String animateRangeString(const String&) const final;
 

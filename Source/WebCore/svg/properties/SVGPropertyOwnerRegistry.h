@@ -27,6 +27,7 @@
 
 #include "SVGAnimatedPropertyAccessorImpl.h"
 #include "SVGAnimatedPropertyPairAccessorImpl.h"
+//#include "SVGElement.h"
 #include "SVGPropertyAccessorImpl.h"
 #include "SVGPropertyRegistry.h"
 #include <wtf/HashMap.h>
@@ -245,10 +246,36 @@ public:
         });
     }
 
+    /*
+    template<typename T = OwnerType>
+    static auto fastAnimatedPropertyLookup(T&, const QualifiedName&) -> typename std::enable_if<!std::is_base_of<SVGElement, T>::value, SVGAnimatedProperty*>::type { return nullptr; }
+
+    template<typename T = OwnerType>
+    static auto fastAnimatedPropertyLookup(T& owner, const QualifiedName& attributeName) -> typename std::enable_if<std::is_base_of<SVGElement, T>::value, SVGAnimatedProperty*>::type
+    {
+        return static_cast<SVGElement>(&owner)->propertyForAttribute(attributeName);
+    }
+            //return static_cast<SVGElement*>(&owner)->propertyForAttribute(attributeName);
+    */
+
+    static auto fastAnimatedPropertyLookup(OwnerType& owner, const QualifiedName& attributeName) -> SVGAnimatedProperty*
+    {
+        if constexpr (std::is_base_of<SVGElement, OwnerType>::value)
+            return (&owner)->propertyForAttribute(attributeName);
+        else {
+            //UNUSED_PARAM(attributeName);
+            return nullptr;
+        }
+    }
+
+
     // Finds the property whose name is attributeName and returns the synchronize
     // string through the associated SVGMemberAccessor.
     std::optional<String> synchronize(const QualifiedName& attributeName) const override
     {
+        if (auto* property = fastAnimatedPropertyLookup(m_owner, attributeName))
+            return property->synchronize();
+
         std::optional<String> value;
         lookupRecursivelyAndApply(attributeName, [&](auto& accessor) {
             value = accessor.synchronize(m_owner);

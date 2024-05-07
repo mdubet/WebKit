@@ -127,7 +127,9 @@ private:
     void didFinishInsertingNode() override;
 
     using PropertyRegistry = SVGPropertyOwnerRegistry<SVGTextPathElement, SVGTextContentElement, SVGURIReference>;
+    friend PropertyRegistry;
 
+    SVGAnimatedProperty* propertyForAttribute(const QualifiedName&) override;
     void attributeChanged(const QualifiedName&, const AtomString& oldValue, const AtomString& newValue, AttributeModificationReason) override;
     void svgAttributeChanged(const QualifiedName&) override;
 
