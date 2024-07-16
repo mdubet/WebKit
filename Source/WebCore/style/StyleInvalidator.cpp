@@ -90,7 +90,7 @@ static bool shouldDirtyAllStyle(const Vector<Ref<StyleSheetContents>>& sheets)
 
 Invalidator::Invalidator(const Vector<Ref<StyleSheetContents>>& sheets, const MQ::MediaQueryEvaluator& mediaQueryEvaluator)
     : m_ownedRuleSet(RuleSet::create())
-    , m_ruleSets({ m_ownedRuleSet })
+    , m_ruleSets(InvalidationRuleSetWithNegationVector { { m_ownedRuleSet } })
     , m_dirtiesAllStyle(shouldDirtyAllStyle(sheets))
 {
     if (m_dirtiesAllStyle)
@@ -104,9 +104,16 @@ Invalidator::Invalidator(const Vector<Ref<StyleSheetContents>>& sheets, const MQ
     m_ruleInformation = collectRuleInformation();
 }
 
-Invalidator::Invalidator(const InvalidationRuleSetVector& ruleSets)
+Invalidator::Invalidator(const InvalidationRuleSetWithNegationVector& ruleSets)
     : m_ruleSets(ruleSets)
     , m_ruleInformation(collectRuleInformation())
+{
+    ASSERT(m_ruleSets.size());
+}
+
+Invalidator::Invalidator(const InvalidationRuleSetVector& ruleSets)
+: m_ruleSets(ruleSets.map([] (auto& element) { return InvalidationRuleSetWithNegation { element }; }))
+, m_ruleInformation(collectRuleInformation())
 {
     ASSERT(m_ruleSets.size());
 }
@@ -117,19 +124,19 @@ Invalidator::RuleInformation Invalidator::collectRuleInformation()
 {
     RuleInformation information;
     for (auto& ruleSet : m_ruleSets) {
-        if (!ruleSet->slottedPseudoElementRules().isEmpty())
+        if (!ruleSet.ruleSet->slottedPseudoElementRules().isEmpty())
             information.hasSlottedPseudoElementRules = true;
-        if (!ruleSet->hostPseudoClassRules().isEmpty())
+        if (!ruleSet.ruleSet->hostPseudoClassRules().isEmpty())
             information.hasHostPseudoClassRules = true;
-        if (ruleSet->hasHostPseudoClassRulesMatchingInShadowTree())
+        if (ruleSet.ruleSet->hasHostPseudoClassRulesMatchingInShadowTree())
             information.hasHostPseudoClassRulesMatchingInShadowTree = true;
-        if (ruleSet->hasUserAgentPartRules())
+        if (ruleSet.ruleSet->hasUserAgentPartRules())
             information.hasUserAgentPartRules = true;
 #if ENABLE(VIDEO)
-        if (!ruleSet->cuePseudoRules().isEmpty())
+        if (!ruleSet.ruleSet->cuePseudoRules().isEmpty())
             information.hasCuePseudoElementRules = true;
 #endif
-        if (!ruleSet->partPseudoElementRules().isEmpty())
+        if (!ruleSet.ruleSet->partPseudoElementRules().isEmpty())
             information.hasPartPseudoElementRules = true;
     }
     return information;
@@ -165,11 +172,15 @@ Invalidator::CheckDescendants Invalidator::invalidateIfNeeded(Element& element, 
     case Validity::Valid:
     case Validity::AnimationInvalid:
     case Validity::InlineStyleInvalid: {
-        for (auto& ruleSet : m_ruleSets) {
-            ElementRuleCollector ruleCollector(element, *ruleSet, selectorMatchingState);
+        for (auto& ruleSetWithNegation : m_ruleSets) {
+            ElementRuleCollector ruleCollector(element, *ruleSetWithNegation.ruleSet, selectorMatchingState);
             ruleCollector.setMode(SelectorChecker::Mode::CollectingRulesIgnoringVirtualPseudoElements);
-
-            if (ruleCollector.matchesAnyAuthorRules()) {
+            auto matchesAnyRules = ruleCollector.matchesAnyAuthorRules();
+            if (matchesAnyRules) {
+                element.invalidateStyleInternal();
+                break;
+            }
+            if (!matchesAnyRules && ruleSetWithNegation.isNegation == IsNegation::Yes) {
                 element.invalidateStyleInternal();
                 break;
             }
@@ -425,8 +436,8 @@ void Invalidator::invalidateUserAgentParts(ShadowRoot& shadowRoot)
         auto& part = descendant.userAgentPart();
         if (!part)
             continue;
-        for (auto& ruleSet : m_ruleSets) {
-            if (ruleSet->userAgentPartRules(part))
+        for (auto& ruleSetWithNegation : m_ruleSets) {
+            if (ruleSetWithNegation.ruleSet->userAgentPartRules(part))
                 descendant.invalidateStyleInternal();
         }
     }
@@ -461,8 +472,8 @@ void Invalidator::invalidateInShadowTreeIfNeeded(Element& element)
 void Invalidator::addToMatchElementRuleSets(Invalidator::MatchElementRuleSets& matchElementRuleSets, const InvalidationRuleSet& invalidationRuleSet)
 {
     matchElementRuleSets.ensure(invalidationRuleSet.matchElement, [] {
-        return InvalidationRuleSetVector { };
-    }).iterator->value.append(invalidationRuleSet.ruleSet.copyRef());
+        return InvalidationRuleSetWithNegationVector { };
+    }).iterator->value.append({ invalidationRuleSet.ruleSet.copyRef(), invalidationRuleSet.isNegation });
 }
 
 void Invalidator::invalidateWithMatchElementRuleSets(Element& element, const MatchElementRuleSets& matchElementRuleSets)

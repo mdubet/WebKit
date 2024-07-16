@@ -48,10 +48,17 @@ class Scope;
 struct InvalidationRuleSet;
 struct SelectorMatchingState;
 
+struct InvalidationRuleSetWithNegation {
+    RefPtr<const RuleSet> ruleSet;
+    IsNegation isNegation { IsNegation::No };
+};
+using InvalidationRuleSetWithNegationVector = Vector<InvalidationRuleSetWithNegation>;
+
 class Invalidator {
 public:
     Invalidator(const Vector<Ref<StyleSheetContents>>&, const MQ::MediaQueryEvaluator&);
     Invalidator(const InvalidationRuleSetVector&);
+    Invalidator(const InvalidationRuleSetWithNegationVector&);
 
     ~Invalidator();
 
@@ -63,7 +70,7 @@ public:
 
     static void invalidateShadowParts(ShadowRoot&);
 
-    using MatchElementRuleSets = HashMap<MatchElement, InvalidationRuleSetVector, IntHash<MatchElement>, WTF::StrongEnumHashTraits<MatchElement>>;
+    using MatchElementRuleSets = HashMap<MatchElement, InvalidationRuleSetWithNegationVector, IntHash<MatchElement>, WTF::StrongEnumHashTraits<MatchElement>>;
     static void addToMatchElementRuleSets(Invalidator::MatchElementRuleSets&, const InvalidationRuleSet&);
     static void invalidateWithMatchElementRuleSets(Element&, const MatchElementRuleSets&);
     static void invalidateAllStyle(Scope&);
@@ -90,7 +97,7 @@ private:
     RuleInformation collectRuleInformation();
 
     RefPtr<RuleSet> m_ownedRuleSet;
-    const InvalidationRuleSetVector m_ruleSets;
+    const InvalidationRuleSetWithNegationVector m_ruleSets;
 
     RuleInformation m_ruleInformation;
 

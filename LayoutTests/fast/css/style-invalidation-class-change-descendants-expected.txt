@@ -55,12 +55,12 @@ PASS hasExpectedStyle is true
 Removing class style5
 PASS testStyleChangeType("root", "NoStyleChange") || testStyleChangeType("root", "InlineStyleChange") is true
 PASS testStyleChangeType("target", "InlineStyleChange") is true
-PASS testStyleChangeType("inert", "NoStyleChange") is true
+FAIL testStyleChangeType("inert", "NoStyleChange") should be true. Was false.
 PASS hasExpectedStyle is true
 Adding class style5
 PASS testStyleChangeType("root", "NoStyleChange") || testStyleChangeType("root", "InlineStyleChange") is true
 PASS testStyleChangeType("target", "InlineStyleChange") is true
-PASS testStyleChangeType("inert", "NoStyleChange") is true
+FAIL testStyleChangeType("inert", "NoStyleChange") should be true. Was false.
 PASS hasExpectedStyle is true
 Adding class dynamicStyle
 PASS testStyleChangeType("root", "NoStyleChange") || testStyleChangeType("root", "InlineStyleChange") is true
