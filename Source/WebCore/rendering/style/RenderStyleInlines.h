@@ -33,6 +33,7 @@
 #include "HitTestRequest.h"
 #include "ImageOrientation.h"
 #include "RenderStyle.h"
+#include "RenderStyleResolveColor.h"
 #include "ScrollTypes.h"
 #include "ScrollbarColor.h"
 #include "ShadowData.h"
@@ -474,7 +475,7 @@ inline const AtomString& RenderStyle::initialTextEmphasisCustomMark() { return n
 constexpr TextEmphasisFill RenderStyle::initialTextEmphasisFill() { return TextEmphasisFill::Filled; }
 constexpr TextEmphasisMark RenderStyle::initialTextEmphasisMark() { return TextEmphasisMark::None; }
 constexpr OptionSet<TextEmphasisPosition> RenderStyle::initialTextEmphasisPosition() { return { TextEmphasisPosition::Over, TextEmphasisPosition::Right }; }
-inline StyleColor RenderStyle::initialTextFillColor() { return StyleColor::currentColor(); }
+inline const StyleColor& RenderStyle::initialTextFillColor() { return StyleColor::currentColor(); }
 inline bool RenderStyle::hasExplicitlySetColor() const { return m_inheritedFlags.hasExplicitlySetColor; }
 constexpr TextGroupAlign RenderStyle::initialTextGroupAlign() { return TextGroupAlign::None; }
 inline Length RenderStyle::initialTextIndent() { return zeroLength(); }

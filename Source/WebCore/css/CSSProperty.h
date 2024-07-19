@@ -74,7 +74,7 @@ public:
     CSSValue* value() const { return m_value.get(); }
     RefPtr<CSSValue> protectedValue() const { return m_value; }
 
-    static CSSPropertyID resolveDirectionAwareProperty(CSSPropertyID, TextDirection, WritingMode);
+    WEBCORE_EXPORT static CSSPropertyID resolveDirectionAwareProperty(CSSPropertyID, TextDirection, WritingMode);
     static CSSPropertyID unresolvePhysicalProperty(CSSPropertyID, TextDirection, WritingMode);
     static bool isInheritedProperty(CSSPropertyID);
     static Vector<String> aliasesForProperty(CSSPropertyID);

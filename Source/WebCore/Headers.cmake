@@ -2455,6 +2455,7 @@ set(WebCore_PRIVATE_FRAMEWORK_HEADERS
     rendering/style/RenderStyle.h
     rendering/style/RenderStyleConstants.h
     rendering/style/RenderStyleInlines.h
+    rendering/style/RenderStyleResolveColor.h
     rendering/style/RenderStyleSetters.h
     rendering/style/ScrollbarColor.h
     rendering/style/ScrollbarGutter.h

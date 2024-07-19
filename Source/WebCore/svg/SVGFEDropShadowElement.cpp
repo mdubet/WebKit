@@ -24,6 +24,7 @@
 #include "NodeName.h"
 #include "RenderElement.h"
 #include "RenderStyle.h"
+#include "RenderStyleResolveColor.h"
 #include "SVGFilter.h"
 #include "SVGNames.h"
 #include "SVGParserUtilities.h"

@@ -64,7 +64,7 @@ public:
     StyleColor();
 
     // Convenience constructors that create StyleAbsoluteColor.
-    StyleColor(Color);
+    WEBCORE_EXPORT StyleColor(Color);
     StyleColor(SRGBA<uint8_t>);
 
     StyleColor(StyleAbsoluteColor&&);
@@ -94,7 +94,7 @@ public:
 
     WEBCORE_EXPORT ~StyleColor();
 
-    static StyleColor currentColor();
+    static const StyleColor& currentColor();
 
     static Color colorFromKeyword(CSSValueID, OptionSet<StyleColorOptions>);
     static Color colorFromAbsoluteKeyword(CSSValueID);
@@ -119,7 +119,7 @@ public:
     static bool isColorKeyword(CSSValueID, OptionSet<CSSColorType> = { CSSColorType::Absolute, CSSColorType::Current, CSSColorType::System });
 
     bool containsCurrentColor() const;
-    bool isCurrentColor() const;
+    WEBCORE_EXPORT bool isCurrentColor() const;
     bool isColorMix() const;
     bool isRelativeColor() const;
     bool isAbsoluteColor() const;

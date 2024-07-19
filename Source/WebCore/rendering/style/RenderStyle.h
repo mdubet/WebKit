@@ -1650,7 +1650,7 @@ public:
     float computedStrokeWidth(const IntSize& viewportSize) const;
     inline void setHasExplicitlySetStrokeWidth(bool);
     inline bool hasExplicitlySetStrokeWidth() const;
-    bool hasPositiveStrokeWidth() const;
+    WEBCORE_EXPORT bool hasPositiveStrokeWidth() const;
     
     inline const StyleColor& strokeColor() const;
     inline void setStrokeColor(const StyleColor&);
@@ -1817,14 +1817,21 @@ public:
     bool lastChildState() const { return m_nonInheritedFlags.lastChildState; }
     void setLastChildState() { setUnique(); m_nonInheritedFlags.lastChildState = true; }
 
-    StyleColor unresolvedColorForProperty(CSSPropertyID colorProperty, bool visitedLink = false) const;
-    Color colorResolvingCurrentColor(CSSPropertyID colorProperty, bool visitedLink) const;
+    //template <CSSPropertyID, bool> StyleColor unresolvedColorForProperty() const;
+    inline StyleColor unresolvedColorForProperty(CSSPropertyID colorProperty, bool visitedLink = false) const;
+
+    //template <CSSPropertyID, bool> inline Color colorResolvingCurrentColor() const;
+    inline Color colorResolvingCurrentColor(CSSPropertyID colorProperty, bool visitedLink) const;
 
     // Resolves the currentColor keyword, but must not be used for the "color" property which has a different semantic.
-    WEBCORE_EXPORT Color colorResolvingCurrentColor(const StyleColor&, bool visitedLink = false) const;
+    //template<bool = false> Color colorResolvingCurrentColor(const StyleColor&) const;
+    inline Color colorResolvingCurrentColor(const StyleColor&, bool visitedLink = false) const;
 
-    WEBCORE_EXPORT Color visitedDependentColor(CSSPropertyID, OptionSet<PaintBehavior> paintBehavior = { }) const;
-    WEBCORE_EXPORT Color visitedDependentColorWithColorFilter(CSSPropertyID, OptionSet<PaintBehavior> paintBehavior = { }) const;
+    //template <CSSPropertyID> inline Color visitedDependentColor(OptionSet<PaintBehavior> paintBehavior = { }) const;
+    inline Color visitedDependentColor(CSSPropertyID, OptionSet<PaintBehavior> paintBehavior = { }) const;
+
+    //template <CSSPropertyID> inline Color visitedDependentColorWithColorFilter(OptionSet<PaintBehavior> paintBehavior = { }) const;
+    inline Color visitedDependentColorWithColorFilter(CSSPropertyID, OptionSet<PaintBehavior> paintBehavior = { }) const;
 
     WEBCORE_EXPORT Color colorByApplyingColorFilter(const Color&) const;
     WEBCORE_EXPORT Color colorWithColorFilter(const StyleColor&) const;
@@ -2154,11 +2161,11 @@ public:
     inline const StyleColor& outlineColor() const;
     inline const StyleColor& textEmphasisColor() const;
     inline const StyleColor& textFillColor() const;
-    static inline StyleColor initialTextFillColor();
+    static inline const StyleColor& initialTextFillColor();
     inline const StyleColor& textStrokeColor() const;
     inline const StyleColor& caretColor() const;
     inline bool hasAutoCaretColor() const;
-    const Color& visitedLinkColor() const;
+    WEBCORE_EXPORT const Color& visitedLinkColor() const;
     inline const StyleColor& visitedLinkBackgroundColor() const;
     inline const StyleColor& visitedLinkBorderLeftColor() const;
     inline const StyleColor& visitedLinkBorderRightColor() const;
