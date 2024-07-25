@@ -30,16 +30,14 @@
 
 namespace WebCore {
 
-void serializationForCSS(StringBuilder& builder, const CSSUnresolvedAbsoluteColor& unresolved)
-{
-    serializationForCSS(builder, unresolved.value);
-}
-
 String serializationForCSS(const CSSUnresolvedAbsoluteColor& unresolved)
 {
-    StringBuilder builder;
-    serializationForCSS(builder, unresolved);
-    return builder.toString();
+    return serializationForCSS(unresolved.value);
+}
+
+void serializationForCSS(StringBuilder& builder, const CSSUnresolvedAbsoluteColor& unresolved)
+{
+    builder.append(serializationForCSS(unresolved));
 }
 
 } // namespace WebCore

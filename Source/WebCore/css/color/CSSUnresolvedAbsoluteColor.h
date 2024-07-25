@@ -53,7 +53,7 @@ String serializationForCSS(const CSSUnresolvedAbsoluteColor&);
 
 inline StyleColor createStyleColor(const CSSUnresolvedAbsoluteColor& unresolved, const Document&, RenderStyle&, Style::ForVisitedLink)
 {
-    return { StyleAbsoluteColor { unresolved.value } };
+    return { unresolved.value };
 }
 
 inline Color createColor(const CSSUnresolvedAbsoluteColor& unresolved, const CSSUnresolvedColorResolutionContext&)

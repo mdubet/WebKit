@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include "CSSPropertyParserConsumer+UnevaluatedCalc.h"
 #include "ColorInterpolationMethod.h"
 #include "StyleColor.h"
 #include <variant>

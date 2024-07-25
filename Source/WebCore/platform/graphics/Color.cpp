@@ -28,6 +28,8 @@
 
 #include "ColorLuminance.h"
 #include "ColorSerialization.h"
+#include "ExtendedStyleColor.h"
+#include "StyleColor.h"
 #include <cmath>
 #include <wtf/Assertions.h>
 #include <wtf/text/TextStream.h>
@@ -37,11 +39,37 @@ namespace WebCore {
 static constexpr auto lightenedBlack = SRGBA<uint8_t> { 84, 84, 84 };
 static constexpr auto darkenedWhite = SRGBA<uint8_t> { 171, 171, 171 };
 
+Color::~Color()
+{
+    if (UNLIKELY(isOutOfLine()))
+        asOutOfLine().deref();
+    else if (UNLIKELY(isExtendedStyleColor()))
+        asExtendedStyleColor().deref();
+}
+
 Color::Color(const Color& other)
     : m_colorAndFlags(other.m_colorAndFlags)
 {
-    if (isOutOfLine())
+    if (UNLIKELY(isOutOfLine()))
         asOutOfLine().ref();
+    else if (UNLIKELY(isExtendedStyleColor()))
+        asExtendedStyleColor().ref();
+}
+
+bool extendedStyleColorEqual(const ExtendedStyleColor& a, const ExtendedStyleColor& b)
+{
+    return a == b;
+}
+
+ExtendedStyleColor& Color::decodedOutOfLineExtendedStyleColor(uint64_t value)
+{
+    return *static_cast<ExtendedStyleColor*>(decodedOutOfLinePointer(value));
+}
+
+const ExtendedStyleColor& Color::asExtendedStyleColor() const
+{
+    ASSERT(isExtendedStyleColor());
+    return decodedOutOfLineExtendedStyleColor(m_colorAndFlags);
 }
 
 Color::Color(Color&& other)
@@ -106,11 +134,15 @@ Color& Color::operator=(const Color& other)
 
     if (isOutOfLine())
         asOutOfLine().deref();
+    else if (isExtendedStyleColor())
+        asExtendedStyleColor().deref();
 
     m_colorAndFlags = other.m_colorAndFlags;
 
     if (isOutOfLine())
         asOutOfLine().ref();
+    else if (isExtendedStyleColor())
+        asExtendedStyleColor().ref();
 
     return *this;
 }
@@ -122,9 +154,13 @@ Color& Color::operator=(Color&& other)
 
     if (isOutOfLine())
         asOutOfLine().deref();
+    else if (isExtendedStyleColor())
+        asExtendedStyleColor().deref();
 
     m_colorAndFlags = other.m_colorAndFlags;
     other.m_colorAndFlags = invalidColorAndFlags;
+
+    // NOTE: moving the object doesn't change the ref counter.
 
     return *this;
 }

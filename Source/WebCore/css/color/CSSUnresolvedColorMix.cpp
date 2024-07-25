@@ -31,7 +31,9 @@
 #include "CSSUnresolvedColor.h"
 #include "CSSUnresolvedColorResolutionContext.h"
 #include "ColorSerialization.h"
+#include "ExtendedStyleColor.h"
 #include "StyleBuilderState.h"
+#include "StyleColor.h"
 
 namespace WebCore {
 
@@ -66,7 +68,7 @@ bool CSSUnresolvedColorMix::Component::operator==(const CSSUnresolvedColorMix::C
 
 StyleColor createStyleColor(const CSSUnresolvedColorMix& unresolved, const Document& document, RenderStyle& style, Style::ForVisitedLink forVisitedLink)
 {
-    return StyleColor {
+    return ExtendedStyleColor::create<StyleColorMix>({
         StyleColorMix {
             unresolved.colorInterpolationMethod,
             StyleColorMix::Component {
@@ -78,7 +80,7 @@ StyleColor createStyleColor(const CSSUnresolvedColorMix& unresolved, const Docum
                 resolveComponentPercentage(unresolved.mixComponents2.percentage)
             }
         }
-    };
+    });
 }
 
 Color createColor(const CSSUnresolvedColorMix& unresolved, const CSSUnresolvedColorResolutionContext& context)
