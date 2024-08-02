@@ -33,13 +33,16 @@
 #include "StyleColor.h"
 
 #include "CSSUnresolvedColor.h"
+#include "CSSValueKeywords.h"
 #include "ColorSerialization.h"
 #include "ExtendedStyleColor.h"
 #include "HashTools.h"
 #include "RenderTheme.h"
 #include "StyleColorMix.h"
 #include "StyleRelativeColor.h"
+#include "wtf/NeverDestroyed.h"
 #include <wtf/text/TextStream.h>
+#include <wtf/SortedArrayMap.h>
 
 namespace WebCore {
 
@@ -179,16 +182,36 @@ StyleColor StyleColor::invalidColor()
     return Color { };
 }
 
+#define VGAPaletteColorFirst CSSValueAqua
+#define VGAPaletteColorLast CSSValueGrey
+#define nonVGANameColorFirst CSSValueAliceblue
+#define nonVGANameColorLast CSSValueYellowgreen
+
 Color StyleColor::colorFromAbsoluteKeyword(CSSValueID keyword)
 {
-    // TODO: maybe it should be a constexpr map for performance.
+    static LazyNeverDestroyed<std::unordered_map<CSSValueID, Color>> map;
+    
+    constexpr auto processInclusiveRange = [&] (auto start, auto end) {
+        for (auto i = start ; i <= end ; i = static_cast<CSSValueID>(i+1)) {
+            if (auto valueName = nameLiteral(i)) {
+                if (auto namedColor = findColor(valueName.characters(), valueName.length())) {
+                    auto color = asSRGBA(PackedColor::ARGB { namedColor->ARGBValue });
+                    map->emplace(static_cast<CSSValueID>(i), WTFMove(color));
+                }
+            }
+        }
+    };
+    static std::once_flag onceFlag;
+    std::call_once(onceFlag, [&] {
+        map.construct();
+        processInclusiveRange(nonVGANameColorFirst, nonVGANameColorLast);
+        processInclusiveRange(VGAPaletteColorFirst, VGAPaletteColorLast);
+        processInclusiveRange(CSSValueTransparent, CSSValueAlpha);
+    });
     ASSERT(StyleColor::isAbsoluteColorKeyword(keyword));
-    if (auto valueName = nameLiteral(keyword)) {
-        if (auto namedColor = findColor(valueName.characters(), valueName.length()))
-            return asSRGBA(PackedColor::ARGB { namedColor->ARGBValue });
-    }
-    ASSERT_NOT_REACHED();
-    return { };
+    return map.get()[keyword];
+    //ASSERT_NOT_REACHED();
+    //return { };
 }
 
 Color StyleColor::colorFromKeyword(CSSValueID keyword, OptionSet<StyleColorOptions> options)
@@ -206,10 +229,11 @@ static bool isVGAPaletteColor(CSSValueID id)
     return (id >= CSSValueAqua && id <= CSSValueGrey);
 }
 
+
 static bool isNonVGANamedColor(CSSValueID id)
 {
     // https://drafts.csswg.org/css-color-4/#named-colors
-    return id >= CSSValueAliceblue && id <= CSSValueYellowgreen;
+    return id >= nonVGANameColorFirst && id <= nonVGANameColorLast;
 }
 
 bool StyleColor::isAbsoluteColorKeyword(CSSValueID id)
