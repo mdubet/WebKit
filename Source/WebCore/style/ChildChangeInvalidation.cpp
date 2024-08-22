@@ -27,14 +27,14 @@
 #include "ChildChangeInvalidation.h"
 
 #include "ElementTraversal.h"
-#include "NodeRenderStyle.h"
 #include "PseudoClassChangeInvalidation.h"
 #include "RenderElement.h"
-#include "ShadowRoot.h"
 #include "SlotAssignment.h"
 #include "StyleResolver.h"
 #include "StyleScopeRuleSets.h"
 #include "TypedElementDescendantIteratorInlines.h"
+#include "style/RuleFeature.h"
+#include "wtf/Assertions.h"
 
 namespace WebCore::Style {
 
@@ -65,29 +65,43 @@ void ChildChangeInvalidation::invalidateForChangedElement(Element& changedElemen
     bool isFirst = isChild && m_childChange.previousSiblingElement == changedElement.previousElementSibling() && changedElementRelation == ChangedElementRelation::SelfOrDescendant;
 
     auto hasMatchingInvalidationSelector = [&](auto& invalidationRuleSet) {
+        WTF_ALWAYS_LOG("has matching start");
         SelectorChecker selectorChecker(changedElement.document());
         SelectorChecker::CheckingContext checkingContext(SelectorChecker::Mode::CollectingRulesIgnoringVirtualPseudoElements);
         checkingContext.matchesAllHasScopes = true;
 
         for (auto* selector : invalidationRuleSet.invalidationSelectors) {
+            WTF_ALWAYS_LOG("selector " << selector->selectorText());
             if (isFirst) {
                 // If this :has() matches ignoring this mutation, nothing actually changes and we don't need to invalidate.
                 // FIXME: We could cache this state across invalidations instead of just testing a single sibling.
                 auto* sibling = m_childChange.previousSiblingElement ? m_childChange.previousSiblingElement : m_childChange.nextSiblingElement;
-                if (sibling && selectorChecker.match(*selector, *sibling, checkingContext)) {
-                    matchingHasSelectors.add(selector);
-                    continue;
+                if (sibling) {
+                    auto match = selectorChecker.match(*selector, *sibling, checkingContext);
+                    if (match || invalidationRuleSet.isNegation == IsNegation::Yes) {
+                        WTF_ALWAYS_LOG("continue");
+                        matchingHasSelectors.add(selector);
+                        continue;
+                    }
                 }
             }
 
             if (matchingHasSelectors.contains(selector))
                 continue;
 
-            if (selectorChecker.match(*selector, changedElement, checkingContext)) {
+            auto match = selectorChecker.match(*selector, changedElement, checkingContext);
+            if (match) {
+                WTF_ALWAYS_LOG("match positive " << changedElement);
+                matchingHasSelectors.add(selector);
+                return true;
+            } else if (invalidationRuleSet.isNegation == IsNegation::Yes) {
+                WTF_ALWAYS_LOG("non match negation");
                 matchingHasSelectors.add(selector);
                 return true;
             }
+            WTF_ALWAYS_LOG("end of selector");
         }
+        WTF_ALWAYS_LOG("has matching false");
         return false;
     };
 
@@ -116,11 +130,36 @@ void ChildChangeInvalidation::invalidateForChangeOutsideHasScope()
         Invalidator::invalidateWithScopeBreakingHasPseudoClassRuleSet(parentElement(), invalidationRuleSet);
 }
 
+void ChildChangeInvalidation::invalidateNotHas()
+{
+    Invalidator::MatchElementRuleSets matchElementRuleSets;
+
+    const auto& ruleSets = parentElement().styleResolver().ruleSets();
+
+    for (auto key : makePseudoClassInvalidationKeys(CSSSelector::PseudoClass::Has, parentElement())) {
+        auto* hasPseudoClassRuleSets = ruleSets.hasPseudoClassInvalidationRuleSets(key);
+        if (!hasPseudoClassRuleSets)
+            continue;
+        WTF_ALWAYS_LOG("has rulesets");
+        for (auto ruleSet: *hasPseudoClassRuleSets) {
+            if (ruleSet.isNegation == IsNegation::Yes) {
+                Invalidator::addToMatchElementRuleSets(matchElementRuleSets, ruleSet);
+                WTF_ALWAYS_LOG("is negation YES");
+            }
+        }
+    }
+
+    if (!matchElementRuleSets.isEmpty())
+        Invalidator::invalidateWithMatchElementRuleSets(parentElement(), matchElementRuleSets);
+}
+
 void ChildChangeInvalidation::invalidateForHasBeforeMutation()
 {
+    WTF_ALWAYS_LOG("before has");
     ASSERT(m_needsHasInvalidation);
 
     invalidateForChangeOutsideHasScope();
+    invalidateNotHas();
 
     MatchingHasSelectors matchingHasSelectors;
 
@@ -173,9 +212,11 @@ void ChildChangeInvalidation::invalidateForHasBeforeMutation()
 
 void ChildChangeInvalidation::invalidateForHasAfterMutation()
 {
+    WTF_ALWAYS_LOG("after has");
     ASSERT(m_needsHasInvalidation);
 
     invalidateForChangeOutsideHasScope();
+    invalidateNotHas();
 
     MatchingHasSelectors matchingHasSelectors;
 
@@ -358,7 +399,10 @@ static void invalidateForLastChildState(Element& child, bool state)
 
 void ChildChangeInvalidation::invalidateAfterChange()
 {
+    WTF_ALWAYS_LOG("after");
     checkForEmptyStyleChange(parentElement());
+
+    invalidateNotHas();
 
     if (m_childChange.source == ContainerNode::ChildChange::Source::Parser)
         return;

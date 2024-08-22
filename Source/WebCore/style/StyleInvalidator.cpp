@@ -41,6 +41,7 @@
 #include "StyleScopeRuleSets.h"
 #include "StyleSheetContents.h"
 #include "TypedElementDescendantIteratorInlines.h"
+#include "wtf/Assertions.h"
 #include <wtf/SetForScope.h>
 
 namespace WebCore {
@@ -177,13 +178,11 @@ Invalidator::CheckDescendants Invalidator::invalidateIfNeeded(Element& element, 
             ruleCollector.setMode(SelectorChecker::Mode::CollectingRulesIgnoringVirtualPseudoElements);
             auto matchesAnyRules = ruleCollector.matchesAnyAuthorRules();
             if (matchesAnyRules) {
+                WTF_ALWAYS_LOG("matchanyrule invalidate");
                 element.invalidateStyleInternal();
                 break;
-            }
-            if (!matchesAnyRules && ruleSetWithNegation.isNegation == IsNegation::Yes) {
-                element.invalidateStyleInternal();
-                break;
-            }
+            } else
+                WTF_ALWAYS_LOG("NOT matchanyrule NO invalidate");
         }
 
         return CheckDescendants::Yes;
@@ -483,6 +482,7 @@ void Invalidator::invalidateWithMatchElementRuleSets(Element& element, const Mat
     for (auto& matchElementAndRuleSet : matchElementRuleSets) {
         Invalidator invalidator(matchElementAndRuleSet.value);
         invalidator.invalidateStyleWithMatchElement(element, matchElementAndRuleSet.key);
+        //WTF_ALWAYS_LOG("invalidating " << element);
     }
 }
 

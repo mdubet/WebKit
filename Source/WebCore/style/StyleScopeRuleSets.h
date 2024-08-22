@@ -50,7 +50,7 @@ struct InvalidationRuleSet {
     RefPtr<RuleSet> ruleSet;
     Vector<const CSSSelector*> invalidationSelectors;
     MatchElement matchElement;
-    IsNegation isNegation;
+    IsNegation isNegation { IsNegation::No };
 };
 
 class ScopeRuleSets {
