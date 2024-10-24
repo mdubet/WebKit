@@ -66,6 +66,16 @@ class OSXSafariDriver(OSXBrowserDriver):
             else:
                 raise Exception('Could not find Safari.app at {}'.format(browser_path))
 
+        #FIXME: use script parameters
+        subtestIterationCount = os.environ.get('SUBTEST_ITERATION_COUNT')
+        subtest = os.environ.get('SUBTEST')
+
+        url = url + "?startAutomatically=true"
+        if subtestIterationCount:
+            url = url + "&iterationCount=" + subtestIterationCount
+        if subtest:
+            url = url + "&suites=" + subtest
+
         args = [safari_binary_path] + self._safari_preferences
         _log.info('Launching safari: %s with url: %s' % (safari_binary_path, url))
         try:

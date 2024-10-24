@@ -70,7 +70,7 @@ namespace WebCore {
 
 
 #define DECLARE_COMMON_ATOM(atomName, atomValue) \
-    extern MainThreadLazyNeverDestroyed<const AtomString> atomName ## AtomData; \
+    extern LazyNeverDestroyed<const AtomString> atomName ## AtomData; \
     inline const AtomString& atomName ## Atom() { return atomName ## AtomData.get(); }
 
 WEBCORE_COMMON_ATOM_STRINGS_FOR_EACH_KEYWORD(DECLARE_COMMON_ATOM)

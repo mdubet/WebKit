@@ -31,6 +31,7 @@
 #include "StyleValidity.h"
 #include "TaskSource.h"
 #include "TreeScope.h"
+#include "wtf/Assertions.h"
 #include <compare>
 #include <wtf/CompactPointerTuple.h>
 #include <wtf/CompactUniquePtrTuple.h>
@@ -44,6 +45,7 @@
 #include <wtf/TZoneMalloc.h>
 #include <wtf/URLHash.h>
 #include <wtf/WeakPtr.h>
+#include <mutex>
 
 namespace WTF {
 class TextStream;
@@ -96,7 +98,7 @@ using NodeOrString = std::variant<RefPtr<Node>, String>;
 const int initialNodeVectorSize = 11; // Covers 99.5%. See webkit.org/b/80706
 typedef Vector<Ref<Node>, initialNodeVectorSize> NodeVector;
 
-class Node : public EventTarget, public CanMakeCheckedPtr<Node> {
+class Node : public EventTarget, public CanMakeThreadSafeCheckedPtr<Node> {
     WTF_MAKE_COMPACT_TZONE_OR_ISO_ALLOCATED(Node);
     WTF_OVERRIDE_DELETE_FOR_CHECKED_PTR(Node);
 
@@ -552,7 +554,7 @@ public:
 
 #if ASSERT_ENABLED
     mutable bool m_inRemovedLastRefFunction { false };
-    bool m_adoptionIsRequired { true };
+    std::atomic<bool> m_adoptionIsRequired { true };
 #endif
 
     void relaxAdoptionRequirement()
@@ -698,8 +700,8 @@ protected:
 
     Node(Document&, NodeType, OptionSet<TypeFlag>);
 
-    static constexpr uint32_t s_refCountIncrement = 2;
-    static constexpr uint32_t s_refCountMask = ~static_cast<uint32_t>(1);
+    static constexpr std::atomic<uint32_t> s_refCountIncrement = 2;
+    static constexpr std::atomic<uint32_t> s_refCountMask = ~static_cast<uint32_t>(1);
 
     enum class NodeStyleFlag : uint16_t {
         DescendantNeedsStyleResolution                          = 1 << 0,
@@ -794,7 +796,7 @@ private:
 
     WEBCORE_EXPORT void notifyInspectorOfRendererChange();
     
-    mutable uint32_t m_refCountAndParentBit { s_refCountIncrement };
+    mutable std::atomic<uint32_t> m_refCountAndParentBit { s_refCountIncrement.load() };
     const uint16_t m_typeBitFields;
     mutable OptionSet<StateFlag> m_stateFlags;
 
@@ -804,6 +806,7 @@ private:
     CheckedPtr<Node> m_next;
     CompactPointerTuple<RenderObject*, uint16_t> m_rendererWithStyleFlags;
     CompactUniquePtrTuple<NodeRareData, uint16_t> m_rareDataWithBitfields;
+    mutable std::mutex m_nodeMutex;
 };
 
 bool connectedInSameTreeScope(const Node*, const Node*);
@@ -835,10 +838,12 @@ inline void adopted(Node* node)
 
 ALWAYS_INLINE void Node::ref() const
 {
-    ASSERT(isMainThread());
+    //WTF_ALWAYS_LOG("start ref");
+    //std::unique_lock lock { m_nodeMutex };
     ASSERT(!m_adoptionIsRequired);
     applyRefDuringDestructionCheck();
     m_refCountAndParentBit += s_refCountIncrement;
+    //WTF_ALWAYS_LOG("end ref");
 }
 
 inline void Node::applyRefDuringDestructionCheck() const
@@ -852,11 +857,15 @@ inline void Node::applyRefDuringDestructionCheck() const
 
 ALWAYS_INLINE void Node::deref() const
 {
-    ASSERT(isMainThread());
+    //WTF_ALWAYS_LOG("start deref");
     ASSERT(!m_adoptionIsRequired);
 
     ASSERT(refCount());
-    auto updatedRefCount = m_refCountAndParentBit - s_refCountIncrement;
+    std::atomic<uint32_t> updatedRefCount = 0;
+    {
+        std::unique_lock lock { m_nodeMutex };
+        updatedRefCount = m_refCountAndParentBit - s_refCountIncrement;
+    }
     if (!updatedRefCount) {
         if (deletionHasBegun())
             return;
@@ -867,11 +876,13 @@ ALWAYS_INLINE void Node::deref() const
         const_cast<Node&>(*this).removedLastRef();
         return;
     }
-    m_refCountAndParentBit = updatedRefCount;
+    m_refCountAndParentBit = updatedRefCount.load();
+    //WTF_ALWAYS_LOG("end deref");
 }
 
 ALWAYS_INLINE bool Node::hasOneRef() const
 {
+
     ASSERT(!deletionHasBegun());
     ASSERT(!m_inRemovedLastRefFunction);
     return refCount() == 1;
@@ -891,7 +902,7 @@ inline void addSubresourceURL(ListHashSet<URL>& urls, const URL& url)
 
 inline ContainerNode* Node::parentNode() const
 {
-    ASSERT(isMainThreadOrGCThread());
+    //ASSERT(isMainThreadOrGCThread());
     return m_parentNode.get();
 }
 

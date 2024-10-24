@@ -55,6 +55,7 @@ public:
 
 #if ENABLE(CSS_SELECTOR_JIT)
     CompiledSelector& compiledSelector() const { return m_styleRule->compiledSelectorForListIndex(m_selectorListIndex); }
+    bool alreadyTriedToCompileSelector() const { return m_styleRule->compiledSelectorForListIndex(m_selectorListIndex).status != SelectorCompilationStatus::NotCompiled; }
 #endif
     
     unsigned selectorIndex() const { return m_selectorIndex; }

@@ -56,6 +56,7 @@
 #include "StyledElement.h"
 #include "UserAgentStyle.h"
 #include <wtf/SetForScope.h>
+#include <thread>
 
 WTF_ALLOW_UNSAFE_BUFFER_USAGE_BEGIN
 
@@ -138,6 +139,7 @@ const Vector<RefPtr<const StyleRule>>& ElementRuleCollector::matchedRuleList() c
 inline void ElementRuleCollector::addMatchedRule(const RuleData& ruleData, unsigned specificity, unsigned scopingRootDistance, const MatchRequest& matchRequest)
 {
     auto cascadeLayerPriority = matchRequest.ruleSet.cascadeLayerPriorityFor(ruleData);
+    auto lock = std::unique_lock<std::shared_mutex>(m_matchedRuleListMutex);
     m_matchedRules.append({ &ruleData, specificity, scopingRootDistance, matchRequest.styleScopeOrdinal, cascadeLayerPriority });
 }
 
@@ -193,6 +195,39 @@ void ElementRuleCollector::collectMatchingRules(CascadeLevel level)
     }
 }
 
+static void process_vector_parallel(const auto& data, auto&& functor) {
+    // If num_threads is 0, use hardware concurrency
+    auto num_threads = std::thread::hardware_concurrency();
+    
+    // Ensure we don't create more threads than elements
+    auto data_size = data.size();
+    num_threads = num_threads > data_size ? num_threads : data_size;
+    
+    // Calculate items per thread
+    size_t chunk_size = data.size() / num_threads;
+    size_t remainder = data.size() % num_threads;
+    
+    std::vector<std::thread> threads;
+    
+    // Launch threads
+    for (size_t i = 0; i < num_threads; ++i) {
+        size_t start = i * chunk_size + std::min(i, remainder);
+        size_t end = (i + 1) * chunk_size + std::min(i + 1, remainder);
+        
+        threads.emplace_back([&, start, end] {
+                for (size_t j = start; j < end; ++j) {
+                    functor(data[j]);
+                }
+        });
+    }
+    
+   for (auto& thread : threads) {
+        if (thread.joinable()) {
+            thread.join();
+        }
+    }
+}
+
 void ElementRuleCollector::collectMatchingRules(const MatchRequest& matchRequest)
 {
     ASSERT_WITH_MESSAGE(!(m_mode == SelectorChecker::Mode::CollectingRulesIgnoringVirtualPseudoElements && m_pseudoElementRequest), "When in StyleInvalidation or SharingRules, SelectorChecker does not try to match the pseudo ID. While ElementRuleCollector supports matching a particular pseudoId in this case, this would indicate a error at the call site since matching a particular element should be unnecessary.");
@@ -204,14 +239,30 @@ void ElementRuleCollector::collectMatchingRules(const MatchRequest& matchRequest
 
     bool isHTML = element.isHTMLElement() && element.document().isHTMLDocument();
 
+    Vector<const RuleData*> rulesToCheckForMatching;
+    auto add = [&](const auto* rules) {
+        if (!rules)
+            return;
+
+        for (unsigned i = 0, size = rules->size(); i < size; ++i) {
+            const auto& ruleData = rules->data()[i];
+
+            // We need to run the JIT compilation process on the main thread
+            if (ruleData.alreadyTriedToCompileSelector())
+                rulesToCheckForMatching.append(&ruleData);
+            else
+                collectMatchingRule(ruleData, matchRequest);
+        }
+    };
+
     // We need to collect the rules for id, class, tag, and everything else into a buffer and
     // then sort the buffer.
     auto& id = element.idForStyleResolution();
     if (!id.isNull())
-        collectMatchingRulesForList(matchRequest.ruleSet.idRules(id), matchRequest);
+        add(matchRequest.ruleSet.idRules(id));
     if (element.hasClass()) {
         for (auto& className : element.classNames())
-            collectMatchingRulesForList(matchRequest.ruleSet.classRules(className), matchRequest);
+            add(matchRequest.ruleSet.classRules(className));
     }
     if (element.hasAttributesWithoutUpdate() && matchRequest.ruleSet.hasAttributeRules()) {
         Vector<const RuleSet::RuleDataVector*, 4> ruleVectors;
@@ -220,18 +271,26 @@ void ElementRuleCollector::collectMatchingRules(const MatchRequest& matchRequest
                 ruleVectors.append(rules);
         }
         for (auto* rules : ruleVectors)
-            collectMatchingRulesForList(rules, matchRequest);
+            add(rules);
     }
     if (m_pseudoElementRequest && m_pseudoElementRequest->nameArgument() != nullAtom())
-        collectMatchingRulesForList(matchRequest.ruleSet.namedPseudoElementRules(m_pseudoElementRequest->nameArgument()), matchRequest);
+        add(matchRequest.ruleSet.namedPseudoElementRules(m_pseudoElementRequest->nameArgument()));
     if (element.isLink())
-        collectMatchingRulesForList(matchRequest.ruleSet.linkPseudoClassRules(), matchRequest);
+        add(matchRequest.ruleSet.linkPseudoClassRules());
     if (matchesFocusPseudoClass(element))
-        collectMatchingRulesForList(matchRequest.ruleSet.focusPseudoClassRules(), matchRequest);
+        add(matchRequest.ruleSet.focusPseudoClassRules());
     if (&element == element.document().documentElement())
-        collectMatchingRulesForList(matchRequest.ruleSet.rootElementRules(), matchRequest);
-    collectMatchingRulesForList(matchRequest.ruleSet.tagRules(element.localName(), isHTML), matchRequest);
-    collectMatchingRulesForList(matchRequest.ruleSet.universalRules(), matchRequest);
+        add(matchRequest.ruleSet.rootElementRules());
+    add(matchRequest.ruleSet.tagRules(element.localName(), isHTML));
+    add(matchRequest.ruleSet.universalRules());
+
+    // Rule matching is embarrasingly parallel, multithread this
+    process_vector_parallel(rulesToCheckForMatching, [&](const auto* ruleData) {
+    //for (const auto& ruleData: rulesToCheckForMatching)
+        collectMatchingRule(*ruleData, matchRequest);                        
+    });
+
+
 }
 
 
@@ -271,6 +330,7 @@ void ElementRuleCollector::transferMatchedRules(DeclarationOrigin declarationOri
             continue;
         }
 
+        ASSERT(matchedRule.ruleData);
         addMatchedProperties({
             matchedRule.ruleData->styleRule().properties(),
             static_cast<uint8_t>(matchedRule.ruleData->linkMatchType()),
@@ -566,24 +626,29 @@ void ElementRuleCollector::collectMatchingRulesForList(const RuleSet::RuleDataVe
 
     for (unsigned i = 0, size = rules->size(); i < size; ++i) {
         const auto& ruleData = rules->data()[i];
+        collectMatchingRule(ruleData, matchRequest);
+    }
+}
 
+void ElementRuleCollector::collectMatchingRule(const RuleData& ruleData, const MatchRequest& matchRequest)
+{
         if (UNLIKELY(!ruleData.isEnabled()))
-            continue;
+            return;
 
         if (!ruleData.canMatchPseudoElement() && m_pseudoElementRequest)
-            continue;
+            return;
 
         if (m_selectorMatchingState && m_selectorMatchingState->selectorFilter.fastRejectSelector(ruleData.descendantSelectorIdentifierHashes()))
-            continue;
+            return;
 
         if (matchRequest.ruleSet.hasContainerQueries() && !containerQueriesMatch(ruleData, matchRequest))
-            continue;
+            return;
 
         std::optional<Vector<ScopingRootWithDistance>> scopingRoots;
         if (matchRequest.ruleSet.hasScopeRules()) {
             auto [result, roots] = scopeRulesMatch(ruleData, matchRequest);
             if (!result)
-                continue;
+                return;
             scopingRoots = WTFMove(roots);
         }
 
@@ -591,7 +656,7 @@ void ElementRuleCollector::collectMatchingRulesForList(const RuleSet::RuleDataVe
 
         // If the rule has no properties to apply, then ignore it in the non-debug mode.
         if (rule.properties().isEmpty() && !m_shouldIncludeEmptyRules)
-            continue;
+            return;
 
         auto addRuleIfMatches = [&] (const ScopingRootWithDistance& scopingRootWithDistance = { }) {
             unsigned specificity;
@@ -602,11 +667,10 @@ void ElementRuleCollector::collectMatchingRulesForList(const RuleSet::RuleDataVe
         if (scopingRoots) {
             for (auto& scopingRoot : *scopingRoots)
                 addRuleIfMatches(scopingRoot);
-            continue;
+            return;
         }
 
         addRuleIfMatches();
-    }
 }
 
 bool ElementRuleCollector::containerQueriesMatch(const RuleData& ruleData, const MatchRequest& matchRequest)

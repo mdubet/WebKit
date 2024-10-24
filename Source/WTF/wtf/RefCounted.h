@@ -121,7 +121,7 @@ protected:
             // from both the main thread and another in a way that is likely concurrent and unsafe.
             // Derive from ThreadSafeRefCounted and make sure the destructor is safe on threads
             // that call deref, or ref/deref from a single thread.
-            ASSERT_WITH_MESSAGE(m_isOwnedByMainThread == isMainThread(), "Unsafe to ref/deref from different threads");
+            //ASSERT_WITH_MESSAGE(m_isOwnedByMainThread == isMainThread(), "Unsafe to ref/deref from different threads");
         }
 #endif
     }

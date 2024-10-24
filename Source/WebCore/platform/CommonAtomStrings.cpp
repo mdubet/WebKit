@@ -29,7 +29,7 @@
 namespace WebCore {
 
 #define DEFINE_COMMON_ATOM(atomName, atomValue) \
-    MainThreadLazyNeverDestroyed<const AtomString> atomName ## AtomData;
+    LazyNeverDestroyed<const AtomString> atomName ## AtomData;
 #define INITIALIZE_COMMON_ATOM(atomName, atomValue) \
     atomName ## AtomData.constructWithoutAccessCheck(atomValue ## _s);
 

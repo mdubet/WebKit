@@ -31,6 +31,7 @@
 #include <memory>
 #include <wtf/RefPtr.h>
 #include <wtf/Vector.h>
+#include <shared_mutex>
 
 namespace WebCore::Style {
 
@@ -97,6 +98,7 @@ private:
 
     void collectMatchingRules(CascadeLevel);
     void collectMatchingRules(const MatchRequest&);
+    void collectMatchingRule(const RuleData&, const MatchRequest&);
     void collectMatchingRulesForList(const RuleSet::RuleDataVector*, const MatchRequest&);
     bool ruleMatches(const RuleData&, unsigned& specificity, ScopeOrdinal, const ContainerNode* scopingRoot = nullptr);
     bool containerQueriesMatch(const RuleData&, const MatchRequest&);
@@ -135,6 +137,7 @@ private:
 
     // Output.
     Vector<RefPtr<const StyleRule>> m_matchedRuleList;
+    mutable std::shared_mutex m_matchedRuleListMutex;
     bool m_didMatchUncommonAttributeSelector { false };
     std::unique_ptr<MatchResult> m_result;
     Relations m_styleRelations;

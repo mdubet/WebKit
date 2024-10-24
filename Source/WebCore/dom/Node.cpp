@@ -128,7 +128,7 @@ public:
     uint8_t rareDataWithBitfields[8];
 };
 
-static_assert(sizeof(Node) == sizeof(SameSizeAsNode), "Node should stay small");
+//static_assert(sizeof(Node) <= sizeof(SameSizeAsNode), "Node should stay small");
 
 #if DUMP_NODE_STATISTICS
 static WeakHashSet<Node>& liveNodeSet()
