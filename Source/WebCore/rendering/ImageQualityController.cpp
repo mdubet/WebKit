@@ -78,20 +78,26 @@ void ImageQualityController::removeObject(RenderBoxModelObject* object)
 
 void ImageQualityController::highQualityRepaintTimerFired()
 {
+    if (m_renderView.beingDestroyed())
+        return;
     if (m_renderView.renderTreeBeingDestroyed())
         return;
+    //WTF_ALWAYS_LOG("renderview: " << m_renderView);
     if (!m_animatedResizeIsActive && !m_liveResizeOptimizationIsActive)
         return;
     m_animatedResizeIsActive = false;
 
     // If the FrameView is in live resize, punt the timer and hold back for now.
-    if (m_renderView.frameView().inLiveResize()) {
+    if (m_renderView.protectedFrameView()->inLiveResize()) {
         restartTimer();
         return;
     }
 
-    for (auto it = m_objectLayerSizeMap.begin(), end = m_objectLayerSizeMap.end(); it != end; ++it)
-        it->key->repaint();
+    for (auto it = m_objectLayerSizeMap.begin(), end = m_objectLayerSizeMap.end(); it != end; ++it) {
+        auto renderer = it->key;
+        //WTF_ALWAYS_LOG("renderer: " << renderer.get());
+        renderer->repaint();
+    }
 
     m_liveResizeOptimizationIsActive = false;
 }
@@ -123,8 +129,8 @@ InterpolationQuality ImageQualityController::chooseInterpolationQuality(Graphics
     if (!(image.isBitmapImage() || image.isPDFDocumentImage()) || context.paintingDisabled())
         return InterpolationQuality::Default;
 
-    if (std::optional<InterpolationQuality> styleInterpolation = interpolationQualityFromStyle(object->style()))
-        return styleInterpolation.value();
+    if (auto styleInterpolation = interpolationQualityFromStyle(object->style()))
+        return *styleInterpolation;
 
     // Make sure to use the unzoomed image size, since if a full page zoom is in effect, the image
     // is actually being scaled.

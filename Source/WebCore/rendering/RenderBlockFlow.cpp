@@ -2327,8 +2327,20 @@ void RenderBlockFlow::styleWillChange(StyleDifference diff, const RenderStyle& n
     RenderBlock::styleWillChange(diff, newStyle);
 }
 
+
 void RenderBlockFlow::deleteLines()
 {
+    using t = std::unique_ptr<LayoutIntegration::LineLayout>;
+
+    static NeverDestroyed<Vector<t>> toDelete;
+
+    auto leak = [&] {
+        if (std::holds_alternative<t>(m_lineLayout)) {
+            toDelete->append(WTFMove(std::get<t>(m_lineLayout)));
+        }
+    };
+    // FIXME: dont leak
+    leak();
     m_lineLayout = std::monostate();
 
     RenderBlock::deleteLines();

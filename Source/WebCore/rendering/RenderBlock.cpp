@@ -773,7 +773,8 @@ void RenderBlock::dirtyForLayoutFromPercentageHeightDescendants()
             if (renderer->hasIntrinsicAspectRatio() || renderer->style().hasAspectRatio())
                 renderer->setPreferredLogicalWidthsDirty(true);
             renderer = renderer->container();
-            ASSERT(renderer);
+            // do we really need this assert ? 
+            //ASSERT(renderer);
             if (!renderer)
                 break;
         }

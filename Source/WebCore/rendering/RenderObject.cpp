@@ -1845,7 +1845,6 @@ void RenderObject::willBeDestroyed()
             node->setRenderer(nullptr);
     }
 
-    removeRareData();
 }
 
 void RenderObject::insertedIntoTree()
@@ -1873,11 +1872,16 @@ void RenderObject::destroy()
 
     willBeDestroyed();
 
+    //removeRareData();
+
     if (auto* widgetRenderer = dynamicDowncast<RenderWidget>(*this)) {
         widgetRenderer->deref();
         return;
     }
-    delete this;
+    //delete this;
+    //clearLayoutBox();
+    //checkedView()->didDestroyRenderer();
+    ASSERT(!m_hasAXObject);
 }
 
 Position RenderObject::positionForPoint(const LayoutPoint& point, HitTestSource source)

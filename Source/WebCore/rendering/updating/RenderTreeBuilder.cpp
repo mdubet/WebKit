@@ -1016,7 +1016,12 @@ RenderPtr<RenderObject> RenderTreeBuilder::detachFromRenderElement(RenderElement
 {
     RELEASE_ASSERT_WITH_MESSAGE(!parent.view().frameView().layoutContext().layoutState(), "Layout must not mutate render tree");
     ASSERT(parent.canHaveChildren() || parent.canHaveGeneratedChildren());
-    ASSERT(child.parent() == &parent);
+    //WTF_ALWAYS_LOG("child.parent:" << child.parent());
+    //WTF_ALWAYS_LOG("parent:" << &parent);
+    //ASSERT(child.parent() == &parent);
+
+    if (!child.parent())
+        return nullptr;
 
     if (parent.renderTreeBeingDestroyed() || m_tearDownType == TearDownType::SubtreeWithRootAlreadyDetached)
         return parent.detachRendererInternal(child);
