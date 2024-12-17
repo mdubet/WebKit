@@ -86,7 +86,7 @@ unsigned ScriptDisallowedScope::s_count = 0;
 ScriptDisallowedScope::EventAllowedScope* ScriptDisallowedScope::EventAllowedScope::s_currentScope = nullptr;
 #endif
 
-ALWAYS_INLINE auto ContainerNode::removeAllChildrenWithScriptAssertion(ChildChange::Source source, NodeVector& children, DeferChildrenChanged deferChildrenChanged) -> DidRemoveElements
+ALWAYS_INLINE auto ContainerNode::removeAllChildrenWithScriptAssertion(ChildChange::Source source, NodeVector& children, DeferChildrenChanged deferChildrenChanged) -> RemoveAllChildrenResult
 {
     ASSERT(children.isEmpty());
     collectChildNodes(*this, children);
@@ -100,7 +100,7 @@ ALWAYS_INLINE auto ContainerNode::removeAllChildrenWithScriptAssertion(ChildChan
             removeBetween(nullptr, child->protectedNextSibling().get(), *child);
         }
         document().incDOMTreeVersion();
-        return hadElementChild ? DidRemoveElements::Yes : DidRemoveElements::No;
+        return { hadElementChild ? DidRemoveElements::Yes : DidRemoveElements::No };
     }
 
     ASSERT_WITH_SECURITY_IMPLICATION(ScriptDisallowedScope::InMainThread::isEventDispatchAllowedInSubtree(*this));
@@ -126,6 +126,8 @@ ALWAYS_INLINE auto ContainerNode::removeAllChildrenWithScriptAssertion(ChildChan
     ContainerNode::ChildChange childChange { ChildChange::Type::AllChildrenRemoved, nullptr, nullptr, nullptr, source, ContainerNode::ChildChange::AffectsElements::Unknown };
 
     bool hadElementChild = false;
+    auto childrenDeletionCanBeDelayed = ChildrenDeletionCanBeDelayed::Yes;
+    unsigned removedNodesCount = 0;
 
     WidgetHierarchyUpdatesSuspensionScope suspendWidgetHierarchyUpdates;
     ScriptDisallowedScope::InMainThread scriptDisallowedScope;
@@ -142,8 +144,11 @@ ALWAYS_INLINE auto ContainerNode::removeAllChildrenWithScriptAssertion(ChildChan
                 hadElementChild = true;
 
             removeBetween(nullptr, child->protectedNextSibling().get(), *child);
-            auto subtreeObservability = notifyChildNodeRemoved(*this, *child);
-            if (source == ChildChange::Source::API && subtreeObservability == RemovedSubtreeObservability::MaybeObservableByRefPtr)
+            auto subtreeResult = notifyChildNodeRemoved(*this, *child);
+            removedNodesCount += subtreeResult.removedNodesCount;
+            if (subtreeResult.childrenDeletionCanBeDelayed == ChildrenDeletionCanBeDelayed::No)
+                childrenDeletionCanBeDelayed = ChildrenDeletionCanBeDelayed::No;
+            if (source == ChildChange::Source::API && subtreeResult.observability == RemovedSubtreeObservability::MaybeObservableByRefPtr)
                 willCreatePossiblyOrphanedTreeByRemoval(*child);
         }
 
@@ -160,7 +165,8 @@ ALWAYS_INLINE auto ContainerNode::removeAllChildrenWithScriptAssertion(ChildChan
         ASSERT_WITH_SECURITY_IMPLICATION(document().domTreeVersion() > treeVersion);
     }
 
-    return hadElementChild ? DidRemoveElements::Yes : DidRemoveElements::No;
+    auto didRemoveElements = hadElementChild ? DidRemoveElements::Yes : DidRemoveElements::No;
+    return { didRemoveElements, removedNodesCount, childrenDeletionCanBeDelayed };
 }
 
 static ContainerNode::ChildChange makeChildChangeForRemoval(Node& childToRemove, ContainerNode::ChildChange::Source source)
@@ -232,7 +238,7 @@ ALWAYS_INLINE bool ContainerNode::removeNodeWithScriptAssertion(Node& childToRem
         RefPtr nextSibling = childToRemove.nextSibling();
 
         removeBetween(previousSibling.get(), nextSibling.get(), childToRemove);
-        subtreeObservability = notifyChildNodeRemoved(*this, childToRemove);
+        subtreeObservability = notifyChildNodeRemoved(*this, childToRemove).observability;
     }
 
     if (source == ChildChange::Source::API && subtreeObservability == RemovedSubtreeObservability::MaybeObservableByRefPtr)
@@ -791,7 +797,7 @@ void ContainerNode::replaceAll(Node* node)
     Ref protectedThis { *this };
     ChildListMutationScope mutation(*this);
     NodeVector removedChildren;
-    auto didRemoveElements = removeAllChildrenWithScriptAssertion(ChildChange::Source::API, removedChildren, DeferChildrenChanged::Yes);
+    auto didRemoveElements = removeAllChildrenWithScriptAssertion(ChildChange::Source::API, removedChildren, DeferChildrenChanged::Yes).didRemoveElements;
 
     auto replacedAllChildren = is<Element>(*node) || didRemoveElements == DidRemoveElements::Yes ? ReplacedAllChildren::YesIncludingElements : ReplacedAllChildren::YesNotIncludingElements;
 
@@ -827,10 +833,23 @@ void ContainerNode::removeChildren()
 
     Ref protectedThis { *this };
     NodeVector removedChildren;
-    removeAllChildrenWithScriptAssertion(ChildChange::Source::API, removedChildren);
+
+    auto subtreeResult = removeAllChildrenWithScriptAssertion(ChildChange::Source::API, removedChildren, DeferChildrenChanged::No);
+
+#if PLATFORM(COCOA)
+    // Store removed nodes in a deletion queue to avoid them being cleaned at the end of the scope.
+    bool asyncDeletionEnabled = document().settings().opportunisticallyDeleteNodes() && document().settings().opportunisticSweepingAndGarbageCollectionEnabled();
+    if (asyncDeletionEnabled && subtreeResult.childrenDeletionCanBeDelayed == ChildrenDeletionCanBeDelayed::Yes && subtreeResult.childrenNodesCount)
+        delayDeletingRemovedChildren(WTFMove(removedChildren), *subtreeResult.childrenNodesCount);
+#endif
 
     rebuildSVGExtensionsElementsIfNecessary();
     dispatchSubtreeModifiedEvent();
+}
+
+void ContainerNode::delayDeletingRemovedChildren(NodeVector&& removedChildren, unsigned childrenCount)
+{
+    document().asyncNodeDeletionQueue().add(WTFMove(removedChildren), childrenCount);
 }
 
 ExceptionOr<void> ContainerNode::appendChild(Node& newChild)

@@ -1199,6 +1199,7 @@ dom/CaretPosition.cpp
 dom/CharacterData.cpp
 dom/ChildListMutationScope.cpp
 dom/ChildNodeList.cpp
+dom/AsyncNodeDeletionQueue.cpp
 dom/ClassCollection.cpp
 dom/ClipboardEvent.cpp
 dom/CollectionIndexCache.cpp

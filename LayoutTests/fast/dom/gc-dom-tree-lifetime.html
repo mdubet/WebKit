@@ -5,20 +5,26 @@
 </head>
 <body>
 <script>
+jsTestIsAsync = true;
+var totalNumNodes = 0;
 var testCases = [["div0", "div1", "div2"],
                  ["div0", "div2", "div1"],
                  ["div1", "div0", "div2"],
                  ["div1", "div2", "div0"],
                  ["div2", "div0", "div1"],
                  ["div2", "div1", "div0"]];
-
+var maxFailCount = 1500;
+var failCount = 0;
 var rootDiv = document.createElement("div");
 document.body.appendChild(rootDiv);
 var testHtml = "<div id='div0-parent'><div id='div0'><div id='div0-child'></div></div><div id='div1-parent'><div id='div1'><div id='div1-child'></div></div><div id='div2-parent'><div id='div2'><div id='div2-child'></div></div></div></div></div>";
-
+var numNodesAfterTest = 0;
+var prevNodes = 0;
+var numNodesDeleted = 0;
 testCases.forEach(function (test) {
     var divX, divY, divZ;
     debug("=== Initial state ===");
+    // get the max number of nodes in case idle time occurs before doing node count check
     rootDiv.innerHTML = testHtml;
     divX = document.getElementById(test[0]);
     divY = document.getElementById(test[1]);
@@ -71,16 +77,34 @@ testCases.forEach(function (test) {
     divY = null;
     divZ = null;
     gc();
+    numNodesDeleted += (prevNodes - window.internals.numberOfLiveNodes());
+});
+if (window.internals)
+    numNodesAfterTest = window.internals.numberOfLiveNodes();
+// DOM nodes can be destructed asynchronously during idle time. Check number of nodes destructed on idle callback.
+// Use the timeout to ensure idle time occurs on the event loop after the test logic finishes so that DOM nodes will 
+// be opportunistically destructed before doing the check.
+setTimeout(() => window.requestIdleCallback(checkNumberOfNodesAlive), 500);
+
+function checkNumberOfNodesAlive() {
     if (window.internals) {
         // If all the Node objects in testHtml are successfully destructed,
-        // at least 9 <div>s objects will be removed.
+        // at least 9 <div>s objects will be removed for each test case.
         // (Actually, since testHtml rendering requires more than 9 Node objects.)
-        if (window.internals.numberOfLiveNodes() <= prevNodes - 9)
+        numNodesDeleted = Math.max(numNodesAfterTest - window.internals.numberOfLiveNodes(), numNodesDeleted);
+        if (numNodesDeleted >= (9 * testCases.length)) {
             testPassed("All <div> objects in a DOM tree are successfully destructed.");
-        else
-            testFailed("<div> objects in a DOM tree are not destructed.");
+            finishJSTest();
+        }
+        else {
+            if (++failCount >= maxFailCount) {
+                testFailed("<div> objects in a DOM tree are not destructed.");
+                finishJSTest();
+            }
+            window.requestIdleCallback(checkNumberOfNodesAlive);
+        }
     }
-});
+}
 
 function checkParentAndChildAlive(div, name) {
     globalDiv = div;

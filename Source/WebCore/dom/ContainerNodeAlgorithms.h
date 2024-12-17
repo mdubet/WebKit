@@ -67,7 +67,16 @@ enum class RemovedSubtreeObservability : bool {
     NotObservable,
     MaybeObservableByRefPtr,
 };
-RemovedSubtreeObservability notifyChildNodeRemoved(ContainerNode& oldParentOfRemovedTree, Node&);
+
+struct RemovedSubtreeResult
+{
+    RemovedSubtreeObservability observability;
+    unsigned removedNodesCount = 0;
+    ContainerNode::ChildrenDeletionCanBeDelayed childrenDeletionCanBeDelayed = ContainerNode::ChildrenDeletionCanBeDelayed::No;
+};
+//using RemovedSubtreeResult = std::pair<RemovedSubtreeObservability, ContainerNode::ChildrenDeletionCanBeDelayed>;
+
+RemovedSubtreeResult notifyChildNodeRemoved(ContainerNode& oldParentOfRemovedTree, Node&);
 void removeDetachedChildrenInContainer(ContainerNode&);
 
 enum class SubframeDisconnectPolicy : bool {

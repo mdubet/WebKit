@@ -101,20 +101,26 @@ inline void updateObservability(RemovedSubtreeObservability& currentObservabilit
         currentObservability = newStatus;
 }
 
-static RemovedSubtreeObservability notifyNodeRemovedFromDocument(ContainerNode& oldParentOfRemovedTree, TreeScopeChange treeScopeChange, Node& node)
+static RemovedSubtreeResult notifyNodeRemovedFromDocument(ContainerNode& oldParentOfRemovedTree, TreeScopeChange treeScopeChange, Node& node)
 {
     ASSERT(!node.parentNode());
     ASSERT(oldParentOfRemovedTree.isConnected());
     ASSERT(node.isConnected());
 
     RemovedSubtreeObservability observability = RemovedSubtreeObservability::NotObservable;
+    unsigned removedNodesCount = 0;
+    auto childrenDeletionCanBeDelayed = ContainerNode::ChildrenDeletionCanBeDelayed::Yes;
+
     for (RefPtr currentNode = &node; currentNode; currentNode = NodeTraversal::next(*currentNode)) {
+        removedNodesCount++;
         currentNode->removedFromAncestor(Node::RemovalType { /* disconnectedFromDocument */ true, treeScopeChange == TreeScopeChange::Changed }, oldParentOfRemovedTree);
+        if (!AsyncNodeDeletionQueue::canNodeBeAsyncDeleted(node))
+            childrenDeletionCanBeDelayed = ContainerNode::ChildrenDeletionCanBeDelayed::No;
         updateObservability(observability, observabilityOfRemovedNode(*currentNode));
         if (RefPtr root = currentNode->shadowRoot())
-            updateObservability(observability, notifyNodeRemovedFromDocument(oldParentOfRemovedTree, TreeScopeChange::DidNotChange, *root));
+            updateObservability(observability, notifyNodeRemovedFromDocument(oldParentOfRemovedTree, TreeScopeChange::DidNotChange, *root).observability);
     }
-    return observability;
+    return { observability, removedNodesCount, childrenDeletionCanBeDelayed };
 }
 
 static RemovedSubtreeObservability notifyNodeRemovedFromTree(ContainerNode& oldParentOfRemovedTree, TreeScopeChange treeScopeChange, Node& node)
@@ -132,7 +138,7 @@ static RemovedSubtreeObservability notifyNodeRemovedFromTree(ContainerNode& oldP
     return observability;
 }
 
-RemovedSubtreeObservability notifyChildNodeRemoved(ContainerNode& oldParentOfRemovedTree, Node& child)
+RemovedSubtreeResult notifyChildNodeRemoved(ContainerNode& oldParentOfRemovedTree, Node& child)
 {
     // Assert that the caller of this function has an instance of ScriptDisallowedScope.
     ASSERT(!isMainThread() || ScriptDisallowedScope::InMainThread::hasDisallowedScope());
@@ -142,7 +148,7 @@ RemovedSubtreeObservability notifyChildNodeRemoved(ContainerNode& oldParentOfRem
     auto treeScopeChange = oldParentOfRemovedTree.isInTreeScope() ? TreeScopeChange::Changed : TreeScopeChange::DidNotChange;
     if (child.isConnected())
         return notifyNodeRemovedFromDocument(oldParentOfRemovedTree, treeScopeChange, child);
-    return notifyNodeRemovedFromTree(oldParentOfRemovedTree, treeScopeChange, child);
+    return { notifyNodeRemovedFromTree(oldParentOfRemovedTree, treeScopeChange, child) };
 }
 
 void removeDetachedChildrenInContainer(ContainerNode& container)

@@ -314,6 +314,14 @@ NeedsDeferKeyDownAndKeyPressTimersUntilNextEditingCommandQuirk:
     WebCore:
       default: false
 
+OpportunisticallyDeleteNodes:
+  comment: >-
+    Allows for asynchronous DOM node deletion.
+  type: bool
+  defaultValue:
+    WebCore:
+      default: true
+
 PaymentRequestEnabled:
   type: bool
   condition: ENABLE(PAYMENT_REQUEST)
