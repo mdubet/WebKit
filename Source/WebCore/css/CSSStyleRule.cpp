@@ -261,8 +261,8 @@ ExceptionOr<unsigned> CSSStyleRule::insertRule(const String& ruleString, unsigne
         m_styleRule = *styleRuleWithNesting;
     }
 
-    if (auto styleSheet = parentStyleSheet())
-        styleSheet->contents().clearHasNestingRulesCache();
+    if (RefPtr styleSheet = parentStyleSheet())
+        styleSheet->contents().clearHasLateResolvedRulesCache();
 
     downcast<StyleRuleWithNesting>(m_styleRule)->nestedRules().insert(index, newRule.releaseNonNull());
     m_childRuleCSSOMWrappers.insert(index, RefPtr<CSSRule>());

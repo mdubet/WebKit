@@ -146,8 +146,8 @@ public:
     bool isMutable() const { return m_isMutable; }
     void setMutable() { m_isMutable = true; }
 
-    bool hasNestingRules() const;
-    void clearHasNestingRulesCache() { m_hasNestingRulesCache = { }; }
+    bool hasLateResolvedRules() const;
+    void clearHasLateResolvedRulesCache() { m_hasLateResolvedRulesCache = { }; }
 
     bool isInMemoryCache() const { return m_inMemoryCacheCount; }
     void addedToMemoryCache();
@@ -187,7 +187,7 @@ private:
     bool m_didLoadErrorOccur { false };
     bool m_usesStyleBasedEditability { false };
     bool m_isMutable { false };
-    mutable std::optional<bool> m_hasNestingRulesCache;
+    mutable std::optional<bool> m_hasLateResolvedRulesCache;
     unsigned m_inMemoryCacheCount { 0 };
 
     CSSParserContext m_parserContext;
