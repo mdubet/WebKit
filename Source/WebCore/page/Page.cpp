@@ -5267,12 +5267,11 @@ void Page::willChangeLocationInCompletelyLoadedSubframe()
 
 void Page::performOpportunisticallyScheduledTasks(MonotonicTime deadline)
 {
+    deleteRemovedNodesAndDetachedRenderers();
     OptionSet<JSC::VM::SchedulerOptions> options;
     if (m_opportunisticTaskScheduler->hasImminentlyScheduledWork())
         options.add(JSC::VM::SchedulerOptions::HasImminentlyScheduledWork);
     commonVM().performOpportunisticallyScheduledTasks(deadline, options);
-
-    deleteRemovedNodesAndDetachedRenderers();
 }
 
 void Page::deleteRemovedNodesAndDetachedRenderers()
@@ -5287,7 +5286,7 @@ void Page::deleteRemovedNodesAndDetachedRenderers()
         RefPtr document = frame.document();
         if (!document)
             return;
-        document->asyncNodeDeletionQueue().deleteNodesNow();
+        document->asyncNodeDeletionQueue().deleteNodes(100);
         RefPtr frameView = document->view();
         if (!frameView)
             return;
