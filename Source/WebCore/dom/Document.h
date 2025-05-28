@@ -696,7 +696,7 @@ public:
     inline RefPtr<Page> protectedPage() const; // Defined in DocumentInlines.h.
     WEBCORE_EXPORT RefPtr<LocalFrame> localMainFrame() const;
     const Settings& settings() const { return m_settings.get(); }
-    Ref<Settings> protectedSettings() const;
+    Ref<const Settings> protectedSettings() const;
     EditingBehavior editingBehavior() const;
 
     inline Quirks& quirks();

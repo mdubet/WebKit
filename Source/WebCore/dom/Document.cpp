@@ -9591,9 +9591,9 @@ EditingBehavior Document::editingBehavior() const
     return EditingBehavior { settings().editingBehaviorType() };
 }
 
-Ref<Settings> Document::protectedSettings() const
+Ref<const Settings> Document::protectedSettings() const
 {
-    return const_cast<Settings&>(m_settings.get());
+    return m_settings.get();
 }
 
 float Document::deviceScaleFactor() const
