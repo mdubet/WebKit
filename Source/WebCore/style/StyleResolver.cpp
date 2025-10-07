@@ -340,10 +340,16 @@ UnadjustedStyle Resolver::unadjustedStyleForElement(Element& element, const Reso
 
     applyMatchedProperties(state, collector.matchResult(), PropertyCascade::normalProperties());
 
+    // Move pseudo-element match results from collector to avoid re-matching during pseudo-element resolution.
+    std::unique_ptr<PseudoElementMatchResults> pseudoElementMatchResults;
+    if (!collector.pseudoElementMatchResults().isEmpty())
+        pseudoElementMatchResults = makeUnique<PseudoElementMatchResults>(collector.pseudoElementMatchResults());
+
     return {
         .style = state.takeStyle(),
         .relations = WTFMove(elementStyleRelations),
-        .matchResult = collector.releaseMatchResult()
+        .matchResult = collector.releaseMatchResult(),
+        .pseudoElementMatchResults = WTFMove(pseudoElementMatchResults)
     };
 }
 
@@ -360,7 +366,8 @@ ResolvedStyle Resolver::styleForElement(Element& element, const ResolutionContex
     return {
         .style = WTFMove(style),
         .relations = WTFMove(unadjustedStyle.relations),
-        .matchResult = WTFMove(unadjustedStyle.matchResult)
+        .matchResult = WTFMove(unadjustedStyle.matchResult),
+        .pseudoElementMatchResults = WTFMove(unadjustedStyle.pseudoElementMatchResults)
     };
 }
 
@@ -582,34 +589,49 @@ std::optional<ResolvedStyle> Resolver::styleForPseudoElement(Element& element, c
         state.setParentStyle(RenderStyle::clonePtr(*state.style()));
     }
 
-    ElementRuleCollector collector(element, m_ruleSets, context.selectorMatchingState);
-    if (pseudoElementRequest.pseudoId() != PseudoId::None)
-        collector.setPseudoElementRequest(pseudoElementRequest);
-    collector.setMedium(m_mediaQueryEvaluator);
-    collector.matchUARules();
+    Ref<MatchResult> matchResult = [&]() -> Ref<MatchResult> {
+        // Check if we have cached match results from element matching.
+        if (context.pseudoElementMatchResults) {
+            //WTF_ALWAYS_LOG("[AUTHOR] Have pseudoElementMatchResults with " << context.pseudoElementMatchResults->size() << " entries, looking for pseudoId=" << static_cast<int>(pseudoElementRequest.pseudoId()));
+            if (auto* cachedResult = context.pseudoElementMatchResults->get(pseudoElementRequest.identifier())) {
+                //WTF_ALWAYS_LOG("CACHE HIT for pseudoelement");
+                return *cachedResult;
+            }
+            //WTF_ALWAYS_LOG("[AUTHOR] ✗ Cache miss - pseudoId not found in map");
+        }
 
-    if (m_matchAuthorAndUserStyles) {
-        collector.matchUserRules();
-        collector.matchAuthorRules();
-    }
+        // No cached results, perform matching as before.
+        ElementRuleCollector collector(element, m_ruleSets, context.selectorMatchingState);
+        if (pseudoElementRequest.pseudoId() != PseudoId::None)
+            collector.setPseudoElementRequest(pseudoElementRequest);
+        collector.setMedium(m_mediaQueryEvaluator);
+        collector.matchUARules();
 
-    ASSERT(!collector.matchedPseudoElementIds());
+        if (m_matchAuthorAndUserStyles) {
+            collector.matchUserRules();
+            collector.matchAuthorRules();
+        }
 
-    if (collector.matchResult().isEmpty())
+        ASSERT(!collector.matchedPseudoElementIds());
+
+        return collector.releaseMatchResult();
+    }();
+
+    if (matchResult->isEmpty())
         return { };
 
     state.style()->setPseudoElementType(pseudoElementRequest.pseudoId());
     if (!pseudoElementRequest.nameArgument().isNull())
         state.style()->setPseudoElementNameArgument(pseudoElementRequest.nameArgument());
 
-    applyMatchedProperties(state, collector.matchResult(), PropertyCascade::normalProperties());
+    applyMatchedProperties(state, matchResult.get(), PropertyCascade::normalProperties());
 
     Adjuster adjuster(document(), *state.parentStyle(), context.parentBoxStyle, nullptr);
     adjuster.adjust(*state.style());
 
     Adjuster::adjustVisibilityForPseudoElement(*state.style(), element);
 
-    return ResolvedStyle { state.takeStyle(), nullptr, collector.releaseMatchResult() };
+    return ResolvedStyle { state.takeStyle(), nullptr, WTFMove(matchResult) };
 }
 
 std::unique_ptr<RenderStyle> Resolver::styleForPage(int pageIndex)

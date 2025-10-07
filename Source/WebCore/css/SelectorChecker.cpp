@@ -225,8 +225,12 @@ bool SelectorChecker::match(const CSSSelector& selector, const Element& element,
 
     if (checkingContext.pseudoId == PseudoId::None && pseudoIdSet) {
         PseudoIdSet publicPseudoIdSet = pseudoIdSet & PseudoIdSet::fromMask(PublicPseudoIdMask);
-        if (checkingContext.resolvingMode == Mode::ResolvingStyle && publicPseudoIdSet)
+        if (checkingContext.resolvingMode == Mode::ResolvingStyle && publicPseudoIdSet) {
             checkingContext.pseudoIDSet = publicPseudoIdSet;
+            // Allow the match to succeed so that pseudo-element rules can be collected during element matching.
+            // This enables caching of pseudo-element match results.
+            return true;
+        }
 
         // When ignoring virtual pseudo elements, the context's pseudo should also be PseudoId::None but that does
         // not cause a failure.

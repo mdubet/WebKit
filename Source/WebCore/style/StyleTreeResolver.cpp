@@ -218,7 +218,8 @@ ResolvedStyle TreeResolver::styleForStyleable(const Styleable& styleable, Resolu
     ResolvedStyle resolvedStyle {
         .style = WTFMove(style),
         .relations = { },
-        .matchResult = WTFMove(unadjustedStyle.matchResult)
+        .matchResult = WTFMove(unadjustedStyle.matchResult),
+        .pseudoElementMatchResults = WTFMove(unadjustedStyle.pseudoElementMatchResults)
     };
 
     // Invalidate the last successful position option here. This is the only place where
@@ -677,7 +678,8 @@ ResolutionContext TreeResolver::makeResolutionContextForPseudoElement(const Elem
         parentBoxStyleForPseudoElement(elementUpdate),
         documentElementStyle(),
         &scope().selectorMatchingState,
-        &m_treeResolutionState
+        &m_treeResolutionState,
+        elementUpdate.pseudoElementMatchResults.get()
     };
 }
 
@@ -892,7 +894,7 @@ ElementUpdate TreeResolver::createAnimatedElementUpdate(ResolvedStyle&& resolved
         return false;
     }();
 
-    return { WTFMove(newStyle), changes, shouldRecompositeLayer, mayNeedRebuildRoot };
+    return { WTFMove(newStyle), changes, shouldRecompositeLayer, mayNeedRebuildRoot, WTFMove(resolvedStyle.pseudoElementMatchResults) };
 }
 
 std::unique_ptr<RenderStyle> TreeResolver::resolveStartingStyle(const ResolvedStyle& resolvedStyle, const Styleable& styleable, const ResolutionContext& resolutionContext)

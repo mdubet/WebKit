@@ -25,10 +25,12 @@
 #pragma once
 
 #include "PropertyAllowlist.h"
+#include "PseudoElementIdentifier.h"
 #include "RuleSet.h"
 #include "SelectorChecker.h"
 #include "StylePropertiesInlines.h"
 #include "StyleScopeOrdinal.h"
+#include <wtf/HashMap.h>
 #include <wtf/Hasher.h>
 
 namespace WebCore::Style {
@@ -60,7 +62,7 @@ struct MatchResult : RefCounted<MatchResult> {
 
     bool isEmpty() const { return userAgentDeclarations.isEmpty() && userDeclarations.isEmpty() && authorDeclarations.isEmpty(); }
 
-    friend bool operator==(const RefCounted<MatchResult>&, const RefCounted<MatchResult>&) { return true; }
+    friend bool operator==(const RefCounted<MatchResult>&, const RefCounted<MatchResult>&);// { return true; }
     friend bool operator==(const MatchResult&, const MatchResult&) = default;
     bool cacheablePropertiesEqual(const MatchResult&) const;
 
@@ -69,6 +71,10 @@ private:
         : isForLink(isForLink)
     { }
 };
+
+// Cache for pseudo-element match results collected during element matching.
+// This allows us to avoid re-matching rules when resolving pseudo-element styles.
+using PseudoElementMatchResults = HashMap<PseudoElementIdentifier, Ref<MatchResult>>;
 
 inline bool operator==(const MatchedProperties& a, const MatchedProperties& b)
 {

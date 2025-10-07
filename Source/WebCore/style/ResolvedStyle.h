@@ -30,12 +30,14 @@ struct UnadjustedStyle {
     std::unique_ptr<RenderStyle> style;
     std::unique_ptr<Relations> relations { };
     RefPtr<const MatchResult> matchResult { };
+    std::unique_ptr<PseudoElementMatchResults> pseudoElementMatchResults { };
 };
 
 struct ResolvedStyle {
     std::unique_ptr<RenderStyle> style;
     std::unique_ptr<Relations> relations { };
     RefPtr<const MatchResult> matchResult { };
+    std::unique_ptr<PseudoElementMatchResults> pseudoElementMatchResults { };
 };
 
 } // namespace Style

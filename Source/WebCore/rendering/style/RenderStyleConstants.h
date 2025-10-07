@@ -193,6 +193,11 @@ public:
         return m_data;
     }
 
+    bool isEmpty() const
+    {
+        return !m_data;
+    }
+
     unsigned data() const { return m_data; }
 
     static constexpr ptrdiff_t dataMemoryOffset() { return OBJECT_OFFSETOF(PseudoIdSet, m_data); }

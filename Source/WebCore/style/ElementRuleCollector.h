@@ -45,6 +45,7 @@ struct MatchedRule {
     unsigned scopingRootDistance { 0 };
     ScopeOrdinal styleScopeOrdinal;
     CascadeLayerPriority cascadeLayerPriority;
+    PseudoIdSet pseudoIdSet; // Pseudo-elements this rule applies to (empty for element-only rules)
 };
 
 class ElementRuleCollector {
@@ -74,6 +75,7 @@ public:
 
     const PseudoIdSet& matchedPseudoElementIds() const { return m_matchedPseudoElementIds; }
     const Relations& styleRelations() const { return m_styleRelations; }
+    const PseudoElementMatchResults& pseudoElementMatchResults() const { return m_pseudoElementMatchResults; }
 
     void addAuthorKeyframeRules(const StyleRuleKeyframe&);
 
@@ -101,17 +103,19 @@ private:
         unsigned distance { std::numeric_limits<unsigned>::max() };
         bool matchesVisited { false };
     };
+    bool ruleMatches(const RuleData&, unsigned& specificity, ScopeOrdinal, std::optional<ScopingRootWithDistance> scopingRoot, PseudoIdSet& pseudoIdSet);
     bool ruleMatches(const RuleData&, unsigned& specificity, ScopeOrdinal, std::optional<ScopingRootWithDistance> scopingRoot = { });
     bool containerQueriesMatch(const RuleData&, const MatchRequest&);
     std::pair<bool, std::optional<Vector<ScopingRootWithDistance>>> scopeRulesMatch(const RuleData&, const MatchRequest&);
 
     void sortMatchedRules();
+    void collectPseudoElementMatchResults(DeclarationOrigin);
 
     Vector<MatchedProperties>& declarationsForOrigin(DeclarationOrigin);
     void sortAndTransferMatchedRules(DeclarationOrigin);
     void transferMatchedRules(DeclarationOrigin, std::optional<ScopeOrdinal> forScope = { });
 
-    void addMatchedRule(const RuleData&, unsigned specificity, unsigned scopingRootDistance, const MatchRequest&);
+    void addMatchedRule(const RuleData&, unsigned specificity, unsigned scopingRootDistance, const MatchRequest&, const PseudoIdSet& = PseudoIdSet());
     void addMatchedProperties(MatchedProperties&&, DeclarationOrigin);
 
     const Element& element() const { return m_element.get(); }
@@ -136,6 +140,7 @@ private:
     Ref<MatchResult> m_result;
     Relations m_styleRelations;
     PseudoIdSet m_matchedPseudoElementIds;
+    PseudoElementMatchResults m_pseudoElementMatchResults;
 };
 
 }

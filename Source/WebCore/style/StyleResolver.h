@@ -85,6 +85,8 @@ struct ResolutionContext {
     const RenderStyle* documentElementStyle { nullptr };
     SelectorMatchingState* selectorMatchingState { nullptr };
     CheckedPtr<TreeResolutionState> treeResolutionState { };
+    // Cached pseudo-element match results from element matching, to avoid re-matching during pseudo-element resolution.
+    const PseudoElementMatchResults* pseudoElementMatchResults { nullptr };
 
     bool isSVGUseTreeRoot { false };
 };

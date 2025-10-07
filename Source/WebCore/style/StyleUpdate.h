@@ -43,11 +43,18 @@ class Text;
 
 namespace Style {
 
+struct MatchResult;
+struct PseudoElementIdentifier;
+
+// Forward declare the type alias - actual definition is in MatchResult.h
+using PseudoElementMatchResults = HashMap<PseudoElementIdentifier, Ref<MatchResult>>;
+
 struct ElementUpdate {
     std::unique_ptr<RenderStyle> style;
     OptionSet<Change> changes { };
     bool recompositeLayer { false };
     bool mayNeedRebuildRoot { false };
+    std::unique_ptr<PseudoElementMatchResults> pseudoElementMatchResults { nullptr };
 };
 
 struct TextUpdate {

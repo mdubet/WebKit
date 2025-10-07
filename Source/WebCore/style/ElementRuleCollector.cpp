@@ -137,10 +137,10 @@ const Vector<RefPtr<const StyleRule>>& ElementRuleCollector::matchedRuleList() c
     return m_matchedRuleList;
 }
 
-inline void ElementRuleCollector::addMatchedRule(const RuleData& ruleData, unsigned specificity, unsigned scopingRootDistance, const MatchRequest& matchRequest)
+inline void ElementRuleCollector::addMatchedRule(const RuleData& ruleData, unsigned specificity, unsigned scopingRootDistance, const MatchRequest& matchRequest, const PseudoIdSet& pseudoIdSet)
 {
     auto cascadeLayerPriority = matchRequest.ruleSet.cascadeLayerPriorityFor(ruleData);
-    m_matchedRules.append({ &ruleData, specificity, scopingRootDistance, matchRequest.styleScopeOrdinal, cascadeLayerPriority });
+    m_matchedRules.append({ &ruleData, specificity, scopingRootDistance, matchRequest.styleScopeOrdinal, cascadeLayerPriority, pseudoIdSet });
 }
 
 void ElementRuleCollector::clearMatchedRules()
@@ -272,6 +272,9 @@ void ElementRuleCollector::sortAndTransferMatchedRules(DeclarationOrigin declara
 
     sortMatchedRules();
 
+    // Collect pseudo-element match results before transferring, while rules are still available.
+    collectPseudoElementMatchResults(declarationOrigin);
+
     transferMatchedRules(declarationOrigin);
 }
 
@@ -289,6 +292,11 @@ void ElementRuleCollector::transferMatchedRules(DeclarationOrigin declarationOri
             m_matchedRuleList.append(&matchedRule.ruleData->styleRule());
             continue;
         }
+
+        // Skip rules that only apply to pseudo-elements when matching for the element itself.
+        // These rules are collected in collectPseudoElementMatchResults() for caching.
+        if (!m_pseudoElementRequest && matchedRule.pseudoIdSet)
+            continue;
 
         addMatchedProperties({
             matchedRule.ruleData->styleRule().properties(),
@@ -489,7 +497,7 @@ static Vector<AtomString> classListForNamedViewTransitionPseudoElement(const Doc
     return capturedElement->classList;
 }
 
-inline bool ElementRuleCollector::ruleMatches(const RuleData& ruleData, unsigned& specificity, ScopeOrdinal styleScopeOrdinal, std::optional<ScopingRootWithDistance> scopingRoot)
+inline bool ElementRuleCollector::ruleMatches(const RuleData& ruleData, unsigned& specificity, ScopeOrdinal styleScopeOrdinal, std::optional<ScopingRootWithDistance> scopingRoot, PseudoIdSet& pseudoIdSet)
 {
     // We know a sufficiently simple single part selector matches simply because we found it from the rule hash when filtering the RuleSet.
     // This is limited to HTML only so we don't need to check the namespace (because of tag name match).
@@ -556,14 +564,20 @@ inline bool ElementRuleCollector::ruleMatches(const RuleData& ruleData, unsigned
 
     bool selectorMatches;
 #if ENABLE(CSS_SELECTOR_JIT)
-    if (compilerEnabled && compiledSelector.status == SelectorCompilationStatus::SelectorCheckerWithCheckingContext) {
+    // Skip JIT for pseudo-element selectors during element matching to allow cache collection.
+    // The JIT code doesn't implement the logic to return true for pseudo-element rules during element matching.
+    bool useJIT = compilerEnabled && compiledSelector.status == SelectorCompilationStatus::SelectorCheckerWithCheckingContext;
+    if (useJIT && !m_pseudoElementRequest && ruleData.canMatchPseudoElement())
+        useJIT = false;
+
+    if (useJIT) {
         compiledSelector.wasUsed();
         selectorMatches = SelectorCompiler::ruleCollectorSelectorCheckerWithCheckingContext(compiledSelector, &element(), &context, &specificity);
     } else
 #endif // ENABLE(CSS_SELECTOR_JIT)
     {
-        auto* selector = ruleData.selector();
         // Slow path.
+        auto* selector = ruleData.selector();
         SelectorChecker selectorChecker(element().document());
         selectorMatches = selectorChecker.match(*selector, element(), context);
         if (selectorMatches)
@@ -571,9 +585,16 @@ inline bool ElementRuleCollector::ruleMatches(const RuleData& ruleData, unsigned
     }
 
     m_matchedPseudoElementIds.merge(context.pseudoIDSet);
+    pseudoIdSet = context.pseudoIDSet;
     m_styleRelations.appendVector(context.styleRelations);
 
     return selectorMatches;
+}
+
+inline bool ElementRuleCollector::ruleMatches(const RuleData& ruleData, unsigned& specificity, ScopeOrdinal styleScopeOrdinal, std::optional<ScopingRootWithDistance> scopingRoot)
+{
+    PseudoIdSet pseudoIdSet;
+    return ruleMatches(ruleData, specificity, styleScopeOrdinal, scopingRoot, pseudoIdSet);
 }
 
 void ElementRuleCollector::collectMatchingRulesForList(const RuleSet::RuleDataVector* rules, const MatchRequest& matchRequest)
@@ -610,8 +631,10 @@ void ElementRuleCollector::collectMatchingRulesForList(const RuleSet::RuleDataVe
 
         auto addRuleIfMatches = [&] (const ScopingRootWithDistance& scopingRootWithDistance = { }) {
             unsigned specificity;
-            if (ruleMatches(ruleData, specificity, matchRequest.styleScopeOrdinal, scopingRootWithDistance))
-                addMatchedRule(ruleData, specificity, scopingRootWithDistance.distance, matchRequest);
+            PseudoIdSet pseudoIdSet;
+            bool matched = ruleMatches(ruleData, specificity, matchRequest.styleScopeOrdinal, scopingRootWithDistance, pseudoIdSet);
+            if (matched)
+                addMatchedRule(ruleData, specificity, scopingRootWithDistance.distance, matchRequest, pseudoIdSet);
         };
 
         if (scopingRoots) {
@@ -841,6 +864,54 @@ void ElementRuleCollector::sortMatchedRules()
     std::ranges::sort(m_matchedRules, compareRules);
 }
 
+void ElementRuleCollector::collectPseudoElementMatchResults(DeclarationOrigin origin)
+{
+    // Only collect pseudo-element results when matching for the element itself, not for a specific pseudo-element.
+    if (m_pseudoElementRequest)
+        return;
+
+    // Build MatchResults for each pseudo-element encountered during element matching.
+    for (const auto& matchedRule : m_matchedRules) {
+        if (!matchedRule.pseudoIdSet)
+            continue;
+
+        // This rule applies to one or more pseudo-elements. Add it to each one's MatchResult.
+        for (auto pseudoId = PseudoId::FirstPublicPseudoId; pseudoId < PseudoId::AfterLastInternalPseudoId; pseudoId = static_cast<PseudoId>(static_cast<unsigned>(pseudoId) + 1)) {
+            if (!matchedRule.pseudoIdSet.has(pseudoId))
+                continue;
+
+            PseudoElementIdentifier identifier { pseudoId };
+            auto& pseudoMatchResult = m_pseudoElementMatchResults.ensure(identifier, [&] {
+                return MatchResult::create(element().isLink());
+            }).iterator->value;
+
+            // Add the matched properties to the appropriate declaration origin.
+            Vector<MatchedProperties>* declarations = nullptr;
+            switch (origin) {
+            case DeclarationOrigin::UserAgent:
+                declarations = &pseudoMatchResult->userAgentDeclarations;
+                break;
+            case DeclarationOrigin::User:
+                declarations = &pseudoMatchResult->userDeclarations;
+                break;
+            case DeclarationOrigin::Author:
+                declarations = &pseudoMatchResult->authorDeclarations;
+                break;
+            }
+
+            declarations->append({
+                matchedRule.ruleData->styleRule().properties(),
+                static_cast<uint8_t>(matchedRule.ruleData->linkMatchType()),
+                matchedRule.ruleData->propertyAllowlist(),
+                matchedRule.styleScopeOrdinal,
+                FromStyleAttribute::No,
+                matchedRule.cascadeLayerPriority,
+                matchedRule.ruleData->usedRuleTypes()
+            });
+        }
+    }
+}
+
 void ElementRuleCollector::matchAllRules(bool matchAuthorAndUserStyles, bool includeSMILProperties)
 {
     matchUARules();
@@ -879,6 +950,9 @@ void ElementRuleCollector::matchAllRules(bool matchAuthorAndUserStyles, bool inc
 
         collectMatchingRules(DeclarationOrigin::Author);
         sortMatchedRules();
+
+        // Collect pseudo-element match results before transferring author rules.
+        collectPseudoElementMatchResults(DeclarationOrigin::Author);
 
         transferMatchedRules(DeclarationOrigin::Author, ScopeOrdinal::Element);
 

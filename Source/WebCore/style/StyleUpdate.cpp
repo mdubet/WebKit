@@ -31,6 +31,7 @@
 #include "Document.h"
 #include "Element.h"
 #include "NodeRenderStyle.h"
+#include "MatchResult.h"
 #include "RenderElement.h"
 #include "SVGElement.h"
 #include "Text.h"
