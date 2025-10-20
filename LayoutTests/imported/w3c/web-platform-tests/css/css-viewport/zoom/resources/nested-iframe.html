@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-
+<html class="reftest-wait">
 <style>
 body {
   --top-scale: 1;
@@ -39,5 +39,12 @@ let url = "leaf.html";
 if (scale != 1) {
   url += `?scale=${scale}`;
 }
+
+// Remove reftest-wait class when nested iframe is loaded
+target.onload = function() {
+  document.documentElement.classList.remove("reftest-wait");
+};
+
 target.src = url;
 </script>
+</html>

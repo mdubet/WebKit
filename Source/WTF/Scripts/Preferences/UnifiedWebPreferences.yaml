@@ -3238,17 +3238,17 @@ GeolocationAPIEnabled:
 
 GetBoundingClientRectZoomed:
   type: bool
-  status: testable
-  category: dom
+  status: internal
+  category: css
   humanReadableName: "getBoundingClientRect zoomed"
   humanReadableDescription: "getBoundingClientRect zoomed"
   defaultValue:
     WebKitLegacy:
-      default: false
+      default: true
     WebKit:
-      default: false
+      default: true
     WebCore:
-      default: false
+      default: true
 
 GetCoalescedEventsEnabled:
   type: bool

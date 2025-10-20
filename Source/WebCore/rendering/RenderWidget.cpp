@@ -241,6 +241,18 @@ void RenderWidget::styleDidChange(StyleDifference diff, const RenderStyle* oldSt
         if (CheckedPtr cache = document().existingAXObjectCache())
             cache->onWidgetVisibilityChanged(*this);
     }
+
+    // If this is an iframe and the zoom property changed, notify the iframe's content frame
+    // to trigger a resize event since devicePixelRatio will have changed.
+    if (oldStyle && oldStyle->zoom() != style().zoom()) {
+        if (auto* frameView = dynamicDowncast<LocalFrameView>(m_widget.get())) {
+            if (auto* frame = &frameView->frame()) {
+                frame->deviceOrPageScaleFactorChanged();
+                if (auto* view = frameView)
+                    view->scheduleResizeEventIfNeeded();
+            }
+        }
+    }
 }
 
 void RenderWidget::paintContents(PaintInfo& paintInfo, const LayoutPoint& paintOffset)
