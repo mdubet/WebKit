@@ -18,14 +18,58 @@
         }
     </style>
 </head>
-<body onload="runRepaintTest()">
+<body>
     <!-- All objects need to look identical -->
-    <object class="object1" data="resources/circle.svg"></object>
-    <object class="object2" data="resources/circle.svg"></object>
+    <object class="object1" id="autoSizeObject" data="resources/circle.svg"></object>
+    <object class="object2" id="explicitSizeObject" data="resources/circle.svg"></object>
 
-    <!-- After zooming the circles should still fill the boxes, it remains the same image as before, just smaller as whole -->
-    <script>var zoomCount = 2; window.shouldZoomOut = true;</script>
-    <script src="../../../fast/repaint/resources/repaint.js"></script>
-    <script src="../resources/testPageZoom.js"></script>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="svg-zoom-test-utils.js"></script>
+    <script>
+        promise_test(async () => {
+            await waitForObjectsToLoad(["autoSizeObject", "explicitSizeObject"]);
+
+            // Get initial sizes
+            const initialAuto = getElementDimensions("autoSizeObject");
+            const initialExplicit = getElementDimensions("explicitSizeObject");
+
+            // Assert initial sizes are non-zero
+            assert_greater_than(initialAuto.width, 0, "Auto-sized object should have non-zero width");
+            assert_greater_than(initialAuto.height, 0, "Auto-sized object should have non-zero height");
+            assert_greater_than(initialExplicit.width, 0, "Explicit-sized object should have non-zero width");
+            assert_greater_than(initialExplicit.height, 0, "Explicit-sized object should have non-zero height");
+
+            // Store the ratio between auto-sized and explicit-sized at start
+            const startWidthRatio = initialAuto.width / initialExplicit.width;
+            const startHeightRatio = initialAuto.height / initialExplicit.height;
+
+            // Only run zoom test if eventSender is available
+            if (!window.eventSender) {
+                return;
+            }
+
+            await zoomPageOut(2);
+            await waitForZoomEffect("autoSizeObject", initialAuto.width);
+
+            const zoomedAuto = getElementDimensions("autoSizeObject");
+            const zoomedExplicit = getElementDimensions("explicitSizeObject");
+
+            // After zoom, the ratio between auto and explicit should remain the same
+            const zoomedWidthRatio = zoomedAuto.width / zoomedExplicit.width;
+            const zoomedHeightRatio = zoomedAuto.height / zoomedExplicit.height;
+
+            assert_approx_equals(zoomedWidthRatio, startWidthRatio, 0.05,
+                "Width ratio should be preserved after zoom");
+            assert_approx_equals(zoomedHeightRatio, startHeightRatio, 0.05,
+                "Height ratio should be preserved after zoom");
+
+            // Both should be smaller after zoom out
+            assert_less_than(zoomedAuto.width, initialAuto.width,
+                "Auto-sized object should be smaller after zoom out");
+            assert_less_than(zoomedAuto.height, initialAuto.height,
+                "Auto-sized object should be smaller after zoom out");
+        }, 'SVG objects should scale proportionally with page zoom');
+    </script>
 </body>
 </html>

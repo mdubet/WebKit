@@ -1,0 +1,4 @@
+
+
+PASS SVG objects should scale proportionally with page zoom
+
