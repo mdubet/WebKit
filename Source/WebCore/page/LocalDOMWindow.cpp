@@ -1762,10 +1762,28 @@ double LocalDOMWindow::devicePixelRatio() const
     if (!page)
         return 0.0;
 
-    float frameScale = 1.0f;
-    if (auto* localFrame = dynamicDowncast<LocalFrame>(frame.get()))
-        frameScale = localFrame->frameScaleFactor();
-    return page->deviceScaleFactor() * frameScale;
+    auto frameScaleRatio = [&] {
+        float frameScale = 1.0f;
+        if (auto* localFrame = dynamicDowncast<LocalFrame>(frame.get()))
+            frameScale = localFrame->frameScaleFactor();
+        if (frame->isMainFrame())
+            return frameScale;
+        // Dont apply page zoom multiple time;
+        return frameScale / page->pageScaleFactor();
+        /*
+
+        if (RefPtr ownerElement = frame->ownerElement()) {
+            if (auto* ownerRenderer = ownerElement->renderer()) {
+                auto parentFrameScale = ownerRenderer->frame().frameScaleFactor();
+                //WTF_ALWAYS_LOG("parentscale: " << parentFrameScale << " localFrame: " << frameScale);
+                return frameScale / parentFrameScale;
+            }
+        }
+        */
+        //return frameScale;
+    };
+
+    return page->deviceScaleFactor() * frameScaleRatio();
 }
 
 void LocalDOMWindow::scrollBy(double x, double y) const

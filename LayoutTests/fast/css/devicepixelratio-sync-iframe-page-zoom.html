@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Test devicePixelRatio with page zoom and iframe</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="frame" srcdoc="This is the iframe"></iframe>
+<script>
+    const iframe = document.querySelector("#frame");
+
+    promise_test(async function (t) {
+        // Ensure page is fully loaded
+        if (document.readyState !== "complete") {
+            await new Promise((r) =>
+                addEventListener("load", r, { once: true }),
+            );
+        }
+
+        if (!window.internals) return;
+
+        // Initial state - should match
+        const initialMainDpi = window.devicePixelRatio;
+        const initialIframeDpi = iframe.contentWindow.devicePixelRatio;
+        assert_equals(
+            initialMainDpi,
+            initialIframeDpi,
+            "Initial DPI should match between main frame and iframe",
+        );
+
+        window.internals.setPageZoomFactor(2);
+
+        // Verify both main frame and iframe have the same DPI after zoom
+        const mainDpiAfterZoom = window.devicePixelRatio;
+        const iframeDpiAfterZoom = iframe.contentWindow.devicePixelRatio;
+
+        assert_equals(
+            iframeDpiAfterZoom,
+            mainDpiAfterZoom,
+            "Main frame and iframe DPI should remain synchronized after page zoom",
+        );
+    }, "devicePixelRatio remains synchronized between main frame and iframe after page zoom");
+</script>
